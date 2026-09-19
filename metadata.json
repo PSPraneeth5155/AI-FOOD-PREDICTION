@@ -1,0 +1,6 @@
+{
+  "name": "NutriTrack AI",
+  "description": "Mobile-first nutrition and food consumption tracker with visual meal recognition, daily nutrient gap insights, and health-aware recommendations.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
