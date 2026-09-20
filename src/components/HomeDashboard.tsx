@@ -1,6 +1,8 @@
 import React from 'react';
 import { AppleRings } from './AppleRings';
 import { UserProfile, LoggedMeal, NutrientGap, RecommendedFood } from '../types';
+import { FitnessActivityCard } from './FitnessActivityCard';
+import { checkWeeklyReminderStatus } from '../data/fitnessService';
 import {
   Plus,
   Flame,
@@ -11,6 +13,8 @@ import {
   ArrowUpRight,
   AlertCircle,
   CheckCircle2,
+  CalendarClock,
+  HeartPulse,
 } from 'lucide-react';
 
 interface HomeDashboardProps {
@@ -23,6 +27,8 @@ interface HomeDashboardProps {
   onQuickAddRecommended: (rec: RecommendedFood) => void;
   onViewAllTrends: () => void;
   onViewAllRecs: () => void;
+  onOpenWeeklyUpdate?: () => void;
+  onOpenFitnessSync?: () => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -35,6 +41,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onQuickAddRecommended,
   onViewAllTrends,
   onViewAllRecs,
+  onOpenWeeklyUpdate,
+  onOpenFitnessSync,
 }) => {
   // Compute today's consumed totals
   const todayCalories = todayMeals.reduce((sum, m) => sum + m.totalCalories, 0);
@@ -48,6 +56,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   // Active top gap message in plain language
   const topGap = gaps.length > 0 ? gaps[0] : null;
+
+  // Weekly Health Check-in status
+  const weeklyStatus = checkWeeklyReminderStatus(user);
 
   return (
     <div className="space-y-6 pb-28 pt-3 px-4 max-w-md mx-auto">
@@ -76,6 +87,50 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <span className="text-xs font-bold text-slate-800">5-day streak</span>
         </div>
       </div>
+
+      {/* WEEKLY HEALTH UPDATE REMINDER BANNER */}
+      {weeklyStatus.isDue ? (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-teal-900 via-slate-900 to-slate-900 text-white shadow-md flex items-center justify-between border border-teal-700/50">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center border border-teal-500/30 shrink-0">
+              <HeartPulse className="w-5 h-5 text-teal-400 animate-pulse" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs font-bold">Weekly Health Check-in</span>
+                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Due ({weeklyStatus.daysSinceLastUpdate}d)
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-tight">
+                Update blood pressure & sugar to recalibrate your nutrition targets.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenWeeklyUpdate}
+            className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-[11px] shrink-0 ml-2 shadow-sm active:scale-95 transition-all"
+          >
+            Update
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-3 py-2 rounded-2xl bg-white/70 backdrop-blur-md border border-slate-200/70 text-slate-700 text-xs shadow-xs">
+          <div className="flex items-center space-x-2">
+            <HeartPulse className="w-4 h-4 text-teal-600" />
+            <span className="text-[11px] font-medium text-slate-700">
+              Health vitals updated {weeklyStatus.daysSinceLastUpdate}d ago
+            </span>
+          </div>
+          <button
+            onClick={onOpenWeeklyUpdate}
+            className="text-[11px] font-bold text-teal-700 hover:text-teal-800"
+          >
+            Quick Check-in →
+          </button>
+        </div>
+      )}
 
       {/* TOP GAP HEALTH BANNER (Plain language, non-clinical) */}
       {topGap && (
@@ -208,6 +263,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* FITNESS TRACKING & SYNC (Google Fit, Samsung Health, etc.) */}
+      <FitnessActivityCard
+        user={user}
+        todayFoodCalories={todayCalories}
+        onOpenSyncModal={onOpenFitnessSync}
+      />
 
       {/* QUICK LOG CTA BANNER */}
       <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-700 to-teal-600 text-white shadow-md shadow-teal-700/20 flex items-center justify-between">

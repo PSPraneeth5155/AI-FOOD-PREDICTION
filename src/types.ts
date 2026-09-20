@@ -9,6 +9,56 @@ export interface MedicalProfile {
   diastolicBP?: number; // e.g. 80
   bloodSugar?: number; // mg/dL fasting
   cholesterol?: number; // mg/dL total
+  restingHeartRate?: number; // bpm
+  bodyFatPercent?: number; // %
+}
+
+export type FitnessSyncSource = 'google_fit' | 'samsung_health' | 'apple_health' | 'fitbit' | 'manual';
+
+export interface FitnessActivityData {
+  steps: number;
+  stepGoal: number;
+  activeCaloriesBurned: number;
+  activeMinutes: number;
+  distanceKm: number;
+  restingHeartRate?: number;
+  avgHeartRate?: number;
+  sleepHours?: number;
+  sleepScore?: number; // 0-100
+  bloodOxygenSpO2?: number; // %
+  source: FitnessSyncSource;
+  lastSyncedAt: string; // ISO string
+}
+
+export interface WeeklyReminderConfig {
+  enabled: boolean;
+  dayOfWeek: number; // 0 = Sunday, 1 = Monday, etc.
+  time: string; // "09:00"
+  lastUpdatedDate: string; // YYYY-MM-DD
+  notifyBrowser: boolean;
+}
+
+export interface FitnessConnections {
+  googleFit: boolean;
+  samsungHealth: boolean;
+  appleHealth: boolean;
+  fitbit: boolean;
+  autoSync: boolean;
+  activeSource: FitnessSyncSource;
+  lastSyncedAt?: string;
+}
+
+export interface HealthSuitabilityAssessment {
+  status: 'suitable' | 'moderate' | 'caution';
+  badgeLabel: string;
+  summary: string;
+  vitalChecks: {
+    vital: string;
+    userValue: string;
+    plateImpact: string;
+    status: 'good' | 'warning' | 'neutral';
+  }[];
+  clinicalTips: string[];
 }
 
 export interface UserTargets {
@@ -51,6 +101,10 @@ export interface UserProfile {
     waterReminders: boolean;
     weeklyReport: boolean;
   };
+  weeklyReminder?: WeeklyReminderConfig;
+  fitnessConnections?: FitnessConnections;
+  fitnessData?: FitnessActivityData;
+  lastHealthDataUpdate?: string; // YYYY-MM-DD
   onboardingCompleted: boolean;
 }
 

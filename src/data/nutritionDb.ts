@@ -1047,6 +1047,8 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
     potassium: 3500,
     iron: 18,
     waterMl: 2500,
+    stepsGoal: 10000,
+    activeCaloriesBurnGoal: 450,
   },
   unitSystem: 'metric',
   notifications: {
@@ -1054,6 +1056,23 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
     waterReminders: true,
     weeklyReport: true,
   },
+  weeklyReminder: {
+    enabled: true,
+    dayOfWeek: 0, // Sunday
+    time: '09:00',
+    lastUpdatedDate: new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0], // 6 days ago so prompt is active soon
+    notifyBrowser: false,
+  },
+  fitnessConnections: {
+    googleFit: true,
+    samsungHealth: true,
+    appleHealth: false,
+    fitbit: false,
+    autoSync: true,
+    lastSyncedAt: new Date(Date.now() - 25 * 60000).toISOString(),
+    activeSource: 'google_fit',
+  },
+  lastHealthDataUpdate: new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0],
   onboardingCompleted: true,
 };
 

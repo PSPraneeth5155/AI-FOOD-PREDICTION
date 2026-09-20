@@ -19,21 +19,28 @@ import {
   RefreshCw,
   Layers,
   AlertCircle,
+  SwitchCamera,
+  Heart,
+  ShieldAlert,
+  ShieldCheck,
+  Info,
 } from 'lucide-react';
-import { FoodItem, MealType, LoggedMeal, PortionSize } from '../types';
+import { FoodItem, MealType, LoggedMeal, PortionSize, UserProfile } from '../types';
 import {
   FOOD_DATABASE,
   SAMPLE_MEAL_PRESETS,
   calculateItemNutrition,
   calculateProteinBreakdown,
 } from '../data/nutritionDb';
+import { evaluateMealHealthSuitability } from '../data/fitnessService';
 
 interface MealLoggerProps {
+  user: UserProfile;
   onSaveMeal: (meal: LoggedMeal) => void;
   onCancel: () => void;
 }
 
-export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) => {
+export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCancel }) => {
   const [mealType, setMealType] = useState<MealType>('lunch');
   const [mealTitle, setMealTitle] = useState('Lunch Meal');
   const [activeStage, setActiveStage] = useState<'capture' | 'review'>('capture');
@@ -46,8 +53,11 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
   // Mode: Indian Plate or Global
   const [isIndianMode, setIsIndianMode] = useState<boolean>(true);
 
-  // Camera stream state
+  // Camera stream state & robust attachment
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const afterFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -71,31 +81,73 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategoryFilter, setSearchCategoryFilter] = useState<string>('all');
 
-  // Start Camera Stream
-  const startCamera = async () => {
+  // Start Camera Stream with fallback
+  const startCamera = async (overrideFacing?: 'environment' | 'user') => {
+    setCameraError(null);
+    const targetFacing = overrideFacing || facingMode;
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setIsCameraActive(true);
+      // Stop prior tracks
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
       }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: targetFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      setCameraStream(stream);
+      setIsCameraActive(true);
     } catch (err) {
-      console.warn('Camera access denied or unavailable, using file upload fallback:', err);
-      fileInputRef.current?.click();
+      console.warn('Constrained camera failed, trying simple video stream:', err);
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        setCameraStream(fallbackStream);
+        setIsCameraActive(true);
+      } catch (fallbackErr) {
+        console.warn('Camera access unavailable:', fallbackErr);
+        setCameraError(
+          'Camera access was not granted or is unavailable. You can upload a photo or choose a 1-tap demo plate.'
+        );
+        setIsCameraActive(false);
+      }
     }
   };
 
+  const flipCamera = () => {
+    const nextFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextFacing);
+    startCamera(nextFacing);
+  };
+
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
   };
+
+  // Wire video element as soon as camera is active & stream is ready
+  useEffect(() => {
+    if (isCameraActive && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch((e) => {
+        console.warn('Video playback error:', e);
+      });
+    }
+  }, [isCameraActive, cameraStream]);
 
   useEffect(() => {
     return () => {
@@ -106,13 +158,16 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
   // Capture frame from live video
   const capturePhoto = () => {
     if (!videoRef.current) return;
+    const v = videoRef.current;
+    const width = v.videoWidth || 640;
+    const height = v.videoHeight || 480;
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      ctx.drawImage(v, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
       stopCamera();
       handleProcessImage(dataUrl);
     }
@@ -440,6 +495,9 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
   // Protein breakdown metrics
   const proteinData = calculateProteinBreakdown(actualConsumedItems);
 
+  // Instant Health Suitability Assessment based on user's clinical vitals & targets
+  const healthSuitability = evaluateMealHealthSuitability(actualConsumedItems, user);
+
   // Save finalized meal
   const handleSave = () => {
     const now = new Date();
@@ -554,40 +612,71 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
           {/* Live Camera Viewfinder or Capture Card */}
           <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 aspect-[4/3] flex flex-col items-center justify-center text-white shadow-lg">
             {isCameraActive ? (
-              <div className="relative w-full h-full">
+              <div className="relative w-full h-full bg-black">
                 <video
                   ref={videoRef}
                   playsInline
                   autoPlay
                   muted
+                  onLoadedMetadata={() => {
+                    videoRef.current?.play().catch(() => {});
+                  }}
                   className="w-full h-full object-cover"
                 />
+
+                {/* Camera Top Controls */}
+                <div className="absolute top-3 inset-x-3 flex items-center justify-between z-20">
+                  <span className="text-[10px] font-bold text-white bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center space-x-1.5 border border-white/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Live Viewfinder</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={flipCamera}
+                    title="Switch Camera (Front/Rear)"
+                    className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 active:scale-95 transition-transform"
+                  >
+                    <SwitchCamera className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {/* Viewfinder Reticle */}
-                <div className="absolute inset-8 border border-white/40 rounded-2xl pointer-events-none flex items-center justify-center">
-                  <div className="w-8 h-8 border-t-2 border-l-2 border-teal-400 absolute top-0 left-0" />
-                  <div className="w-8 h-8 border-t-2 border-r-2 border-teal-400 absolute top-0 right-0" />
-                  <div className="w-8 h-8 border-b-2 border-l-2 border-teal-400 absolute bottom-0 left-0" />
-                  <div className="w-8 h-8 border-b-2 border-r-2 border-teal-400 absolute bottom-0 right-0" />
-                  <span className="text-xs text-white/90 font-medium px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-sm">
-                    Frame plate or thali
+                <div className="absolute inset-10 border border-white/40 rounded-2xl pointer-events-none flex items-center justify-center">
+                  <div className="w-7 h-7 border-t-2 border-l-2 border-teal-400 absolute top-0 left-0" />
+                  <div className="w-7 h-7 border-t-2 border-r-2 border-teal-400 absolute top-0 right-0" />
+                  <div className="w-7 h-7 border-b-2 border-l-2 border-teal-400 absolute bottom-0 left-0" />
+                  <div className="w-7 h-7 border-b-2 border-r-2 border-teal-400 absolute bottom-0 right-0" />
+                  <span className="text-[11px] text-white/95 font-semibold px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm shadow-xs">
+                    Center Plate & Tap Shutter
                   </span>
                 </div>
 
-                {/* Shutter Button */}
-                <div className="absolute bottom-4 inset-x-0 flex items-center justify-center space-x-6">
+                {/* Shutter Button & Controls */}
+                <div className="absolute bottom-4 inset-x-0 flex items-center justify-center space-x-6 z-20">
                   <button
+                    type="button"
                     onClick={stopCamera}
-                    className="p-2.5 rounded-full bg-black/60 text-white text-xs backdrop-blur-sm"
+                    className="px-3.5 py-2 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-sm border border-white/20 active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={capturePhoto}
-                    className="w-16 h-16 rounded-full border-4 border-white bg-teal-500 flex items-center justify-center active:scale-95 shadow-xl transition-transform"
+                    title="Snap Plate"
+                    className="w-16 h-16 rounded-full border-4 border-white bg-teal-500 hover:bg-teal-400 flex items-center justify-center active:scale-90 shadow-xl transition-transform"
                   >
-                    <div className="w-6 h-6 rounded-full bg-white" />
+                    <div className="w-6 h-6 rounded-full bg-white shadow-xs" />
                   </button>
-                  <div className="w-12" />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Upload Photo instead"
+                    className="p-2.5 rounded-full bg-black/60 text-white backdrop-blur-sm border border-white/20 active:scale-95"
+                  >
+                    <Upload className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ) : (
@@ -598,14 +687,21 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
                 <div>
                   <h3 className="text-base font-bold text-white">Snap Plate or Upload Photo</h3>
                   <p className="text-xs text-slate-300 mt-1 max-w-[240px]">
-                    Identifies every distinct dish on your plate with portion-aware nutrition.
+                    Instantly evaluates portion nutrition and checks suitability against your health vitals.
                   </p>
                 </div>
+
+                {cameraError && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[11px] leading-tight max-w-xs">
+                    {cameraError}
+                  </div>
+                )}
 
                 <div className="flex items-center space-x-3 w-full max-w-xs pt-1">
                   <button
                     id="btn-start-camera"
-                    onClick={startCamera}
+                    type="button"
+                    onClick={() => startCamera()}
                     className="flex-1 py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center justify-center space-x-2 active:scale-95 transition-all shadow-md shadow-teal-900/30"
                   >
                     <Camera className="w-4 h-4" />
@@ -614,6 +710,7 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
 
                   <button
                     id="btn-upload-photo"
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold flex items-center justify-center space-x-2 active:scale-95 transition-all"
                   >
@@ -1142,6 +1239,124 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ onSaveMeal, onCancel }) 
               </div>
             )}
           </div>
+
+          {/* INSTANT HEALTH SUITABILITY EVALUATION (Tailored to User's Clinical Vitals) */}
+          {actualConsumedItems.length > 0 && (
+            <div
+              className={`p-4 rounded-3xl border transition-all space-y-3 ${
+                healthSuitability.status === 'suitable'
+                  ? 'bg-emerald-50/70 border-emerald-200/90 text-emerald-950'
+                  : healthSuitability.status === 'moderate'
+                  ? 'bg-amber-50/70 border-amber-200/90 text-amber-950'
+                  : 'bg-rose-50/70 border-rose-200/90 text-rose-950'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-2">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      healthSuitability.status === 'suitable'
+                        ? 'bg-emerald-600 text-white'
+                        : healthSuitability.status === 'moderate'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-rose-600 text-white'
+                    }`}
+                  >
+                    {healthSuitability.status === 'suitable' ? (
+                      <ShieldCheck className="w-4 h-4" />
+                    ) : healthSuitability.status === 'moderate' ? (
+                      <Info className="w-4 h-4" />
+                    ) : (
+                      <ShieldAlert className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block">
+                      {healthSuitability.badgeLabel}
+                    </span>
+                    <span className="text-[10px] opacity-75 block">
+                      Based on BP, Blood Sugar & Target Macros
+                    </span>
+                  </div>
+                </div>
+
+                <span
+                  className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
+                    healthSuitability.status === 'suitable'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : healthSuitability.status === 'moderate'
+                      ? 'bg-amber-100 text-amber-800 border-amber-300'
+                      : 'bg-rose-100 text-rose-800 border-rose-300'
+                  }`}
+                >
+                  {healthSuitability.status === 'suitable'
+                    ? 'Healthy Choice'
+                    : healthSuitability.status === 'moderate'
+                    ? 'Moderate'
+                    : 'Caution'}
+                </span>
+              </div>
+
+              <p className="text-[11px] leading-relaxed font-medium">
+                {healthSuitability.summary}
+              </p>
+
+              {/* Vitals Evaluation Grid */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-70 block">
+                  Clinical Vital Checks:
+                </span>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {healthSuitability.vitalChecks.map((check, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded-xl bg-white/80 backdrop-blur-xs border border-slate-200/60 flex items-start justify-between text-xs space-x-2"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="font-bold text-slate-800 text-[11px]">
+                            {check.vital}
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-medium">
+                            • {check.userValue}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 leading-tight">
+                          {check.plateImpact}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                          check.status === 'good'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : check.status === 'warning'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {check.status === 'good' ? 'OK ✓' : 'Alert ⚠️'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actionable Clinical Recommendations */}
+              {healthSuitability.clinicalTips.length > 0 && (
+                <div className="p-2.5 rounded-xl bg-white/70 border border-slate-200/50 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-700 block">
+                    Nutrition Guidance:
+                  </span>
+                  {healthSuitability.clinicalTips.map((tip, idx) => (
+                    <p key={idx} className="text-[10px] text-slate-600 leading-tight">
+                      • {tip}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Running Totals Summary Card */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg space-y-3">

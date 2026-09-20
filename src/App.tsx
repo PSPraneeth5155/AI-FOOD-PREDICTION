@@ -18,6 +18,8 @@ import { SettingsView } from './components/SettingsView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { HealthReportModal } from './components/HealthReportModal';
 import { MealDetailModal } from './components/MealDetailModal';
+import { WeeklyHealthUpdateModal } from './components/WeeklyHealthUpdateModal';
+import { FitnessSyncModal } from './components/FitnessSyncModal';
 
 export default function App() {
   // 1. User Profile State (persisted in localStorage)
@@ -51,6 +53,8 @@ export default function App() {
   // 4. Modals State
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => !user.onboardingCompleted);
   const [showHealthReport, setShowHealthReport] = useState<boolean>(false);
+  const [showWeeklyUpdateModal, setShowWeeklyUpdateModal] = useState<boolean>(false);
+  const [showFitnessSyncModal, setShowFitnessSyncModal] = useState<boolean>(false);
   const [selectedMeal, setSelectedMeal] = useState<LoggedMeal | null>(null);
 
   // Sync to local storage
@@ -185,11 +189,14 @@ export default function App() {
             onQuickAddRecommended={handleQuickAddRecommended}
             onViewAllTrends={() => setCurrentTab('insights')}
             onViewAllRecs={() => setCurrentTab('recommendations')}
+            onOpenWeeklyUpdate={() => setShowWeeklyUpdateModal(true)}
+            onOpenFitnessSync={() => setShowFitnessSyncModal(true)}
           />
         )}
 
         {currentTab === 'log' && (
           <MealLogger
+            user={user}
             onSaveMeal={handleSaveMeal}
             onCancel={() => setCurrentTab('home')}
           />
@@ -217,6 +224,8 @@ export default function App() {
             onUpdateUser={(updated) => setUser(updated)}
             onOpenHealthReport={() => setShowHealthReport(true)}
             onRestartOnboarding={() => setShowOnboarding(true)}
+            onOpenWeeklyUpdate={() => setShowWeeklyUpdateModal(true)}
+            onOpenFitnessSync={() => setShowFitnessSyncModal(true)}
           />
         )}
       </main>
@@ -248,6 +257,27 @@ export default function App() {
           meals={meals}
           gaps={nutrientGaps}
           onClose={() => setShowHealthReport(false)}
+        />
+      )}
+
+      {showWeeklyUpdateModal && (
+        <WeeklyHealthUpdateModal
+          user={user}
+          onUpdateUser={(updated: UserProfile) => {
+            setUser(updated);
+            setShowWeeklyUpdateModal(false);
+          }}
+          onClose={() => setShowWeeklyUpdateModal(false)}
+        />
+      )}
+
+      {showFitnessSyncModal && (
+        <FitnessSyncModal
+          user={user}
+          onUpdateUser={(updated: UserProfile) => {
+            setUser(updated);
+          }}
+          onClose={() => setShowFitnessSyncModal(false)}
         />
       )}
 

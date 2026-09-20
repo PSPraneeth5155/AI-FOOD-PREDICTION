@@ -13,6 +13,8 @@ import {
   Check,
   RefreshCw,
   Sliders,
+  HeartPulse,
+  Activity,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -20,6 +22,8 @@ interface SettingsViewProps {
   onUpdateUser: (updated: UserProfile) => void;
   onOpenHealthReport: () => void;
   onRestartOnboarding: () => void;
+  onOpenWeeklyUpdate?: () => void;
+  onOpenFitnessSync?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -27,6 +31,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateUser,
   onOpenHealthReport,
   onRestartOnboarding,
+  onOpenWeeklyUpdate,
+  onOpenFitnessSync,
 }) => {
   // Collapsible section state
   const [openSection, setOpenSection] = useState<string | null>('bodyProfile');
@@ -156,6 +162,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           View & Print
         </button>
+      </div>
+
+      {/* QUICK ACTIONS FOR WEEKLY CHECK-IN & FITNESS SYNC */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <div
+          onClick={onOpenWeeklyUpdate}
+          className="p-3.5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/80 shadow-xs hover:border-teal-300 cursor-pointer transition-all flex flex-col justify-between space-y-2 group"
+        >
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <HeartPulse className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Weekly Check-in</span>
+          </div>
+          <p className="text-[10px] text-slate-500 leading-tight">
+            Recalibrate BP, blood sugar & reminder interval
+          </p>
+          <span className="text-[11px] font-bold text-teal-700 group-hover:underline">
+            Manage Vitals →
+          </span>
+        </div>
+
+        <div
+          onClick={onOpenFitnessSync}
+          className="p-3.5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/80 shadow-xs hover:border-teal-300 cursor-pointer transition-all flex flex-col justify-between space-y-2 group"
+        >
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Activity className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Fitness Apps</span>
+          </div>
+          <p className="text-[10px] text-slate-500 leading-tight">
+            Google Fit, Samsung Health & Apple Health
+          </p>
+          <span className="text-[11px] font-bold text-teal-700 group-hover:underline">
+            Sync Devices →
+          </span>
+        </div>
       </div>
 
       {/* GROUP 1: Physical & Body Metrics */}
