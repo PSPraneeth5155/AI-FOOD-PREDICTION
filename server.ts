@@ -5,6 +5,14 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { fallbackMap } from "./src/data/fallbackPlatters";
 
+// Import V1 Serverless API Handlers
+import scoreFoodHandler from "./api/v1/score-food";
+import rankFoodsHandler from "./api/v1/rank-foods";
+import detectFoodHandler from "./api/v1/detect-food";
+import calculateConsumptionHandler from "./api/v1/calculate-consumption";
+import profileLedgerHandler from "./api/v1/profile-ledger";
+import clinicalRulesHandler from "./api/v1/clinical-rules";
+
 dotenv.config();
 
 const app = express();
@@ -75,6 +83,14 @@ const userCorrectionsStore: UserCorrectionRecord[] = [
     cuisineRegion: "South Indian",
   },
 ];
+
+// ================= NutriTrack AI V1 Serverless Endpoints =================
+app.all("/api/v1/score-food", (req: Request, res: Response) => scoreFoodHandler(req, res));
+app.all("/api/v1/rank-foods", (req: Request, res: Response) => rankFoodsHandler(req, res));
+app.all("/api/v1/detect-food", (req: Request, res: Response) => detectFoodHandler(req, res));
+app.all("/api/v1/calculate-consumption", (req: Request, res: Response) => calculateConsumptionHandler(req, res));
+app.all("/api/v1/profile-ledger", (req: Request, res: Response) => profileLedgerHandler(req, res));
+app.all("/api/v1/clinical-rules", (req: Request, res: Response) => clinicalRulesHandler(req, res));
 
 // Health check endpoint
 app.get("/api/health", (_req: Request, res: Response) => {

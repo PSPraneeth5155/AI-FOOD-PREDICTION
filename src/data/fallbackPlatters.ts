@@ -386,3 +386,44 @@ export const fallbackMap: Record<string, any[]> = {
     },
   ],
 };
+
+
+export const FALLBACK_PLATTER_PRESETS = fallbackMap;
+
+export function getFallbackPresetForContext(
+  mealType = 'lunch',
+  isIndianMode = true,
+  cuisinePreference
+) {
+  if (isIndianMode) {
+    if (mealType === 'breakfast') {
+      return {
+        name: 'South Indian Breakfast Platter',
+        items: fallbackMap.indian_breakfast || fallbackMap.breakfast,
+      };
+    }
+    if (cuisinePreference && cuisinePreference.toLowerCase().includes('biryani')) {
+      return {
+        name: 'Hyderabadi Dum Biryani Platter',
+        items: fallbackMap.indian_biryani || fallbackMap.indian_thali,
+      };
+    }
+    return {
+      name: 'North Indian Balanced Thali',
+      items: fallbackMap.indian_thali || fallbackMap.lunch,
+    };
+  }
+
+  const norm = (mealType || 'lunch').toLowerCase();
+  const names = {
+    breakfast: 'Healthy Breakfast Platter',
+    lunch: 'Balanced Power Lunch',
+    dinner: 'Nourishing Dinner Platter',
+    snack: 'High-Protein Snack Bowl',
+  };
+
+  return {
+    name: names[norm] || 'Standard Balanced Platter',
+    items: fallbackMap[norm] || fallbackMap.lunch,
+  };
+}

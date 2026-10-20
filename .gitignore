@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+android_twa/**/build/
+android_twa/.gradle/
+android_twa/local.properties
+scratch/
+*.apk

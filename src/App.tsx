@@ -20,6 +20,7 @@ import { HealthReportModal } from './components/HealthReportModal';
 import { MealDetailModal } from './components/MealDetailModal';
 import { WeeklyHealthUpdateModal } from './components/WeeklyHealthUpdateModal';
 import { FitnessSyncModal } from './components/FitnessSyncModal';
+import { ClinicianReviewPortal } from './components/ClinicianReviewPortal';
 
 export default function App() {
   // 1. User Profile State (persisted in localStorage)
@@ -55,6 +56,7 @@ export default function App() {
   const [showHealthReport, setShowHealthReport] = useState<boolean>(false);
   const [showWeeklyUpdateModal, setShowWeeklyUpdateModal] = useState<boolean>(false);
   const [showFitnessSyncModal, setShowFitnessSyncModal] = useState<boolean>(false);
+  const [showClinicianPortal, setShowClinicianPortal] = useState<boolean>(false);
   const [selectedMeal, setSelectedMeal] = useState<LoggedMeal | null>(null);
 
   // Sync to local storage
@@ -191,6 +193,7 @@ export default function App() {
             onViewAllRecs={() => setCurrentTab('recommendations')}
             onOpenWeeklyUpdate={() => setShowWeeklyUpdateModal(true)}
             onOpenFitnessSync={() => setShowFitnessSyncModal(true)}
+            onOpenClinicianPortal={() => setShowClinicianPortal(true)}
           />
         )}
 
@@ -226,6 +229,7 @@ export default function App() {
             onRestartOnboarding={() => setShowOnboarding(true)}
             onOpenWeeklyUpdate={() => setShowWeeklyUpdateModal(true)}
             onOpenFitnessSync={() => setShowFitnessSyncModal(true)}
+            onOpenClinicianPortal={() => setShowClinicianPortal(true)}
           />
         )}
       </main>
@@ -278,6 +282,13 @@ export default function App() {
             setUser(updated);
           }}
           onClose={() => setShowFitnessSyncModal(false)}
+        />
+      )}
+
+      {showClinicianPortal && (
+        <ClinicianReviewPortal
+          isOpen={showClinicianPortal}
+          onClose={() => setShowClinicianPortal(false)}
         />
       )}
 

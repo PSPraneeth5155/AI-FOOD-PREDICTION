@@ -89,6 +89,32 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
             </div>
           </div>
 
+          {/* 12-Nutrient Micronutrient Breakdown */}
+          <div className="grid grid-cols-4 gap-1.5 text-center p-2 rounded-xl bg-slate-50/70 border border-slate-100 text-[10px]">
+            <div>
+              <span className="text-slate-400 block">Sodium</span>
+              <span className="font-bold text-slate-700">{meal.totalSodium}mg</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block">Sat. Fat</span>
+              <span className="font-bold text-slate-700">
+                {meal.actualItems.reduce((s, i) => s + (i.saturatedFat || 0), 0).toFixed(1)}g
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block">Potassium</span>
+              <span className="font-bold text-slate-700">
+                {Math.round(meal.actualItems.reduce((s, i) => s + (i.potassium || 0), 0))}mg
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block">Iron</span>
+              <span className="font-bold text-slate-700">
+                {meal.actualItems.reduce((s, i) => s + (i.iron || 0), 0).toFixed(1)}mg
+              </span>
+            </div>
+          </div>
+
           {/* Protein Breakdown Formula */}
           <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 space-y-1 text-xs">
             <div className="flex items-center space-x-1.5 text-emerald-900 font-bold text-[11px] uppercase tracking-wider">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { calculateBMI, calculateTargets } from '../data/nutritionDb';
+import { resolveConditionVariants } from '../shared/conditionStagingResolver';
 import {
   X,
   Calendar,
@@ -75,18 +76,27 @@ export const WeeklyHealthUpdateModal: React.FC<WeeklyHealthUpdateModalProps> = (
   };
 
   const handleSave = () => {
+    const updatedMedical = {
+      ...user.medical,
+      systolicBP,
+      diastolicBP,
+      bloodSugar,
+      cholesterol,
+      restingHeartRate,
+      bodyFatPercent,
+    };
+
+    const stagedVariants = resolveConditionVariants({
+      ...user,
+      weightKg,
+      bmi: newBmi.bmi,
+      medical: updatedMedical,
+    });
+
     const updatedTargets = calculateTargets({
       ...user,
       weightKg,
-      medical: {
-        ...user.medical,
-        systolicBP,
-        diastolicBP,
-        bloodSugar,
-        cholesterol,
-        restingHeartRate,
-        bodyFatPercent,
-      },
+      medical: updatedMedical,
     });
 
     const updatedUser: UserProfile = {
@@ -94,15 +104,8 @@ export const WeeklyHealthUpdateModal: React.FC<WeeklyHealthUpdateModalProps> = (
       weightKg,
       bmi: newBmi.bmi,
       bmiCategory: newBmi.category,
-      medical: {
-        ...user.medical,
-        systolicBP,
-        diastolicBP,
-        bloodSugar,
-        cholesterol,
-        restingHeartRate,
-        bodyFatPercent,
-      },
+      medical: updatedMedical,
+      activeConditionVariants: stagedVariants,
       targets: updatedTargets,
       lastHealthDataUpdate: new Date().toISOString().split('T')[0],
       weeklyReminder: {

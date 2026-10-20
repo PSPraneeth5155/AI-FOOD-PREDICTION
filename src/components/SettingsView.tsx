@@ -15,6 +15,7 @@ import {
   Sliders,
   HeartPulse,
   Activity,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -24,6 +25,7 @@ interface SettingsViewProps {
   onRestartOnboarding: () => void;
   onOpenWeeklyUpdate?: () => void;
   onOpenFitnessSync?: () => void;
+  onOpenClinicianPortal?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -33,6 +35,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRestartOnboarding,
   onOpenWeeklyUpdate,
   onOpenFitnessSync,
+  onOpenClinicianPortal,
 }) => {
   // Collapsible section state
   const [openSection, setOpenSection] = useState<string | null>('bodyProfile');
@@ -561,8 +564,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </div>
 
+      {/* Clinician Governance Action */}
+      {onOpenClinicianPortal && (
+        <div className="pt-2">
+          <button
+            onClick={onOpenClinicianPortal}
+            className="w-full py-3.5 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-between transition-all shadow-md border border-slate-700"
+          >
+            <div className="flex items-center space-x-2.5">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <span className="block font-bold">Clinician Governance Portal</span>
+                <span className="text-[10px] text-slate-400 font-normal">Review & audit 504 clinical threshold rules</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-600 text-white">
+              Open Portal
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Rerun Onboarding Action */}
-      <div className="pt-2 flex flex-col space-y-2">
+      <div className="pt-1 flex flex-col space-y-2">
         <button
           onClick={onRestartOnboarding}
           className="w-full py-3 rounded-2xl bg-white/70 hover:bg-white border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center space-x-2 transition-all"

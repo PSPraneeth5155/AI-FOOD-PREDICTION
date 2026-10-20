@@ -26,6 +26,7 @@ import {
   Info,
 } from 'lucide-react';
 import { FoodItem, MealType, LoggedMeal, PortionSize, UserProfile } from '../types';
+import { SuitabilityExplanationModal } from './SuitabilityExplanationModal';
 import {
   FOOD_DATABASE,
   SAMPLE_MEAL_PRESETS,
@@ -66,6 +67,7 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedItems, setDetectedItems] = useState<FoodItem[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedItemForXai, setSelectedItemForXai] = useState<FoodItem | null>(null);
   const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
   const [leftoverPercent, setLeftoverPercent] = useState<number>(0);
 
@@ -196,7 +198,8 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.84));
+          const webp = canvas.toDataURL('image/webp', 0.80);
+          resolve(webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.80));
         } else {
           resolve(dataUrl);
         }
@@ -287,6 +290,28 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleSnapPortion = (itemId: string, targetGrams: number) => {
+    setDetectedItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const currentMultiplier = item.portionMultiplier || 1.0;
+        const targetMultiplier = Number((targetGrams / 100).toFixed(2));
+        const factor = targetMultiplier / currentMultiplier;
+        return {
+          ...item,
+          portionMultiplier: targetMultiplier,
+          servingDescription: `${targetGrams}g (Clinically Adjusted)`,
+          calories: Math.round(item.calories * factor),
+          protein: Number((item.protein * factor).toFixed(1)),
+          carbs: Number((item.carbs * factor).toFixed(1)),
+          fat: Number((item.fat * factor).toFixed(1)),
+          fiber: Number((item.fiber * factor).toFixed(1)),
+          sodium: Math.round(item.sodium * factor),
+        };
+      })
+    );
   };
 
   // Change Portion Size (Small / Medium / Large)
@@ -522,6 +547,19 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
       totalFiber,
       totalSodium,
     };
+
+    // Commit consumed delta to serverless ledger
+    fetch('/api/v1/calculate-consumption', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.id,
+        servedItems: detectedItems,
+        overallLeftoverPercent: leftoverPercent,
+        mealType,
+        title: newMeal.title,
+      }),
+    }).catch(() => {});
 
     onSaveMeal(newMeal);
   };
@@ -1072,6 +1110,41 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
                             )}
                           </div>
                           <p className="text-[10px] text-slate-400 mt-0.5">{item.servingDescription}</p>
+                          {item.suitability && (
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedItemForXai(item);
+                                }}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1 transition-all ${
+                                  item.suitability.suitabilityScore >= 85
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : item.suitability.suitabilityScore >= 70
+                                    ? 'bg-teal-100 text-teal-800'
+                                    : item.suitability.suitabilityScore >= 50
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                <span>Score: {Math.round(item.suitability.suitabilityScore)} ({item.suitability.recommendationLabel})</span>
+                                <Info className="w-2.5 h-2.5" />
+                              </button>
+                              {item.suitability.recommendedPortionGrams && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSnapPortion(item.id, item.suitability.recommendedPortionGrams);
+                                  }}
+                                  className="px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200"
+                                >
+                                  Snap to {item.suitability.recommendedPortionGrams}g
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center space-x-1">

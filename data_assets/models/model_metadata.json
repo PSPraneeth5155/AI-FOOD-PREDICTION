@@ -1,0 +1,88 @@
+{
+  "model_id": "nutritrack_lgbm_v1",
+  "version": "1.0.0",
+  "framework": "LightGBM",
+  "onnx_opset": 15,
+  "input_tensor_name": "float_input",
+  "output_tensor_name": "variable",
+  "features_count": 48,
+  "features": [
+    "age",
+    "gender_encoded",
+    "bmi",
+    "systolic_bp",
+    "diastolic_bp",
+    "fasting_glucose",
+    "hba1c",
+    "egfr",
+    "activity_level_encoded",
+    "sleep_hours",
+    "fam_DIABETES",
+    "fam_PREDIABETES",
+    "fam_HYPERTENSION",
+    "fam_HIGH_CHOLESTEROL",
+    "fam_HEART_DISEASE",
+    "fam_OBESITY",
+    "fam_UNDERWEIGHT",
+    "fam_CKD",
+    "fam_FATTY_LIVER",
+    "fam_ANEMIA",
+    "fam_OSTEOPOROSIS",
+    "fam_ATHLETES",
+    "fam_ELDERLY",
+    "fam_PREGNANCY",
+    "calories",
+    "protein",
+    "carbs",
+    "fiber",
+    "sugar",
+    "total_fat",
+    "saturated_fat",
+    "sodium",
+    "cholesterol",
+    "potassium",
+    "calcium",
+    "iron",
+    "glycemic_index_encoded",
+    "calories_remaining",
+    "protein_gap",
+    "carbs_remaining",
+    "fiber_gap",
+    "sugar_remaining",
+    "sat_fat_remaining",
+    "sodium_remaining",
+    "cholesterol_remaining",
+    "potassium_remaining",
+    "calcium_gap",
+    "iron_gap"
+  ],
+  "metrics": {
+    "r2_score": 0.9833,
+    "mae": 2.65,
+    "macro_f1": 0.8951,
+    "train_samples": 8800,
+    "test_samples": 2200
+  },
+  "score_bands": {
+    "Highly Recommended": [
+      85.0,
+      100.0
+    ],
+    "Recommended": [
+      70.0,
+      84.9
+    ],
+    "Consume in Moderation": [
+      50.0,
+      69.9
+    ],
+    "Limit Intake": [
+      30.0,
+      49.9
+    ],
+    "Avoid": [
+      0.0,
+      29.9
+    ]
+  }
+}

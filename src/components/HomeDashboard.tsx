@@ -15,6 +15,10 @@ import {
   CheckCircle2,
   CalendarClock,
   HeartPulse,
+  ShieldCheck,
+  Scale,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 
 interface HomeDashboardProps {
@@ -29,6 +33,7 @@ interface HomeDashboardProps {
   onViewAllRecs: () => void;
   onOpenWeeklyUpdate?: () => void;
   onOpenFitnessSync?: () => void;
+  onOpenClinicianPortal?: () => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -43,6 +48,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onViewAllRecs,
   onOpenWeeklyUpdate,
   onOpenFitnessSync,
+  onOpenClinicianPortal,
 }) => {
   // Compute today's consumed totals
   const todayCalories = todayMeals.reduce((sum, m) => sum + m.totalCalories, 0);
@@ -52,7 +58,33 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const todayFiber = Number(todayMeals.reduce((sum, m) => sum + m.totalFiber, 0).toFixed(1));
   const todaySodium = todayMeals.reduce((sum, m) => sum + m.totalSodium, 0);
 
+  const [showFullLedger, setShowFullLedger] = React.useState(false);
+
   const targets = user.targets;
+
+  const todaySatFat = Number(todayMeals.reduce((sum, m) => sum + (m.servedItems?.reduce((s, i) => s + (i.saturatedFat || 0), 0) || 0), 0).toFixed(1));
+  const todaySugar = Number(todayMeals.reduce((sum, m) => sum + (m.servedItems?.reduce((s, i) => s + (i.sugar || 0), 0) || 0), 0).toFixed(1));
+  const todayCholesterol = Math.round(todayMeals.reduce((sum, m) => sum + (m.servedItems?.reduce((s, i) => s + (i.cholesterol || 0), 0) || 0), 0));
+  const todayPotassium = Math.round(todayMeals.reduce((sum, m) => sum + (m.servedItems?.reduce((s, i) => s + (i.potassium || 0), 0) || 0), 0));
+  const todayCalcium = Math.round(todayMeals.reduce((sum, m) => sum + (m.servedItems?.reduce((s, i) => s + (i.calcium || 0), 0) || 0), 0));
+  const todayIron = Number(todayMeals.reduce((sum, m) => sum + (m.servedItems?.reduce((s, i) => s + (i.iron || 0), 0) || 0), 0).toFixed(1));
+
+  // Compute 12-nutrient adherence score (0-100)
+  const adherencePoints = [
+    todayCalories <= targets.calories * 1.08,
+    todayProtein >= targets.protein * 0.75,
+    todayCarbs <= targets.carbs * 1.10,
+    todayFat <= targets.fat * 1.10,
+    todaySatFat <= (targets.saturatedFat || 20) * 1.05,
+    todayFiber >= targets.fiber * 0.70,
+    todaySugar <= targets.sugar * 1.05,
+    todaySodium <= targets.sodium * 1.05,
+    todayCholesterol <= (targets.cholesterol || 300) * 1.05,
+    todayPotassium >= targets.potassium * 0.70,
+    todayCalcium >= (targets.calcium || 1000) * 0.70,
+    todayIron >= targets.iron * 0.70,
+  ].filter(Boolean).length;
+  const adherencePercent = Math.round((adherencePoints / 12) * 100);
 
   // Active top gap message in plain language
   const topGap = gaps.length > 0 ? gaps[0] : null;
@@ -86,6 +118,34 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
           <span className="text-xs font-bold text-slate-800">5-day streak</span>
         </div>
+      </div>
+
+      {/* CLINICAL PROFILE & DIETITIAN PORTAL BANNER */}
+      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md flex items-center justify-between border border-slate-700">
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold tracking-tight">Active Clinical Governance</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              504 Rules Active
+            </span>
+          </div>
+          <div className="flex items-center gap-1 flex-wrap">
+            {(user.activeConditionVariants || []).map((v) => (
+              <span key={v} className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-medium">
+                {v.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
+        </div>
+        {onOpenClinicianPortal && (
+          <button
+            onClick={onOpenClinicianPortal}
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shadow-sm whitespace-nowrap ml-2 transition-all"
+          >
+            Review Rules
+          </button>
+        )}
       </div>
 
       {/* WEEKLY HEALTH UPDATE REMINDER BANNER */}
@@ -262,6 +322,86 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 12-NUTRIENT CLINICAL LEDGER ACCORDION */}
+      <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-emerald-600" />
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                12-Nutrient Clinical Ledger
+              </h3>
+              <p className="text-[10px] text-slate-400">Deterministic Remaining Budgets</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800">
+              {adherencePercent}% Adherence
+            </span>
+            <button
+              onClick={() => setShowFullLedger(!showFullLedger)}
+              className="p-1 text-slate-400 hover:text-slate-600"
+            >
+              {showFullLedger ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Essential 4 micronutrients bar */}
+        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <span className="text-[10px] text-slate-400 block">Sodium</span>
+            <span className={`font-bold ${todaySodium > targets.sodium ? 'text-rose-600' : 'text-slate-800'}`}>
+              {todaySodium}/{targets.sodium}mg
+            </span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <span className="text-[10px] text-slate-400 block">Fiber</span>
+            <span className="font-bold text-slate-800">{todayFiber}/{targets.fiber}g</span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <span className="text-[10px] text-slate-400 block">Sat. Fat</span>
+            <span className={`font-bold ${todaySatFat > targets.saturatedFat ? 'text-rose-600' : 'text-slate-800'}`}>
+              {todaySatFat}/{targets.saturatedFat}g
+            </span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <span className="text-[10px] text-slate-400 block">Potassium</span>
+            <span className="font-bold text-slate-800">{todayPotassium}/{targets.potassium}mg</span>
+          </div>
+        </div>
+
+        {/* Expanded 12 nutrients grid */}
+        {showFullLedger && (
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-[11px] animate-in fade-in duration-150">
+            <div className="p-2 rounded-lg bg-slate-50">
+              <span className="text-slate-400 block text-[10px]">Sugar</span>
+              <span className="font-bold">{todaySugar}/{targets.sugar}g</span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-50">
+              <span className="text-slate-400 block text-[10px]">Cholesterol</span>
+              <span className="font-bold">{todayCholesterol}/{targets.cholesterol}mg</span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-50">
+              <span className="text-slate-400 block text-[10px]">Calcium</span>
+              <span className="font-bold">{todayCalcium}/{targets.calcium}mg</span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-50">
+              <span className="text-slate-400 block text-[10px]">Iron</span>
+              <span className="font-bold">{todayIron}/{targets.iron}mg</span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-50">
+              <span className="text-slate-400 block text-[10px]">Active Burn</span>
+              <span className="font-bold">{user.fitnessData?.activeCaloriesBurned || 0} kcal</span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-50">
+              <span className="text-slate-400 block text-[10px]">Hydration</span>
+              <span className="font-bold">1850/{targets.waterMl}ml</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* FITNESS TRACKING & SYNC (Google Fit, Samsung Health, etc.) */}
