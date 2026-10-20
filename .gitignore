@@ -9,5 +9,11 @@ coverage/
 android_twa/**/build/
 android_twa/.gradle/
 android_twa/local.properties
+android/**/build/
+android/.gradle/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
 scratch/
 *.apk

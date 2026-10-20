@@ -15,6 +15,9 @@
     "db:seed": "tsx scripts/seed_serverless_db.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "@google/genai": "^2.4.0",
     "@neondatabase/serverless": "^1.2.0",
     "@tailwindcss/vite": "^4.3.3",
