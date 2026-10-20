@@ -17,3 +17,5 @@ android/*.iml
 android/app/*.iml
 scratch/
 *.apk
+*_screenshot.png
+*screen.png
