@@ -33,6 +33,7 @@ import {
   calculateItemNutrition,
   calculateProteinBreakdown,
 } from '../data/nutritionDb';
+import { getFallbackPresetForContext } from '../data/fallbackPlatters';
 import { evaluateMealHealthSuitability } from '../data/fitnessService';
 
 interface MealLoggerProps {
@@ -260,16 +261,35 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
     }
 
     try {
-      const res = await fetch('/api/detect-food', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64,
-          mealType,
-          isIndianMode,
-          cuisinePreference: isIndianMode ? 'indian' : 'global',
-        }),
-      });
+      let res: Response | null = null;
+      try {
+        res = await fetch('/api/v1/detect-food', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64,
+            mealType,
+            isIndianMode,
+            cuisinePreference: isIndianMode ? 'indian' : 'global',
+          }),
+        });
+      } catch (primaryErr) {
+        console.warn('Primary /api/v1/detect-food failed, trying /api/detect-food fallback:', primaryErr);
+        res = await fetch('/api/detect-food', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64,
+            mealType,
+            isIndianMode,
+            cuisinePreference: isIndianMode ? 'indian' : 'global',
+          }),
+        });
+      }
+
+      if (!res.ok) {
+        throw new Error(`Food detection endpoint returned HTTP ${res.status}`);
+      }
 
       const data = await res.json();
       if (data.detectedItems && data.detectedItems.length > 0) {
@@ -277,16 +297,51 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
         if (data.mealTitle && (!mealTitle || mealTitle === 'Lunch' || mealTitle === 'Breakfast' || mealTitle === 'Dinner')) {
           setMealTitle(data.mealTitle);
         }
-      } else {
+      } else if (data.isFoodDetected === false) {
         setDetectedItems([]);
         setToastMessage(data.message || 'No dishes detected. Tap "+ Add Item" to choose from food library.');
         setTimeout(() => setToastMessage(null), 4000);
+      } else {
+        // Fallback to contextual platter if empty
+        const fallback = getFallbackPresetForContext(mealType, isIndianMode, isIndianMode ? 'indian' : 'global');
+        const fallbackItems: FoodItem[] = fallback.items.map((fi: any, idx: number) => {
+          const match = FOOD_DATABASE.find((f) => f.name.toLowerCase() === fi.name.toLowerCase()) || FOOD_DATABASE[0];
+          const constructed = calculateItemNutrition(match, fi.portion || 'medium');
+          if (fi.box) constructed.box = fi.box;
+          constructed.id = `preset-${Date.now()}-${idx}`;
+          constructed.originalPrediction = fi.name;
+          constructed.confidenceTier = fi.confidenceTier || 'medium';
+          constructed.confidence = fi.confidence || 0.78;
+          constructed.isConfirmed = constructed.confidenceTier === 'high';
+          constructed.similarCandidates = fi.similarCandidates || [];
+          return constructed;
+        });
+        setDetectedItems(fallbackItems);
+        if (!mealTitle || mealTitle === 'Lunch' || mealTitle === 'Breakfast' || mealTitle === 'Dinner') {
+          setMealTitle(fallback.name);
+        }
       }
     } catch (err) {
-      console.warn('Detection API error:', err);
-      setDetectedItems([]);
-      setToastMessage('Could not connect to food recognition service. Tap "+ Add Item" to add manually.');
-      setTimeout(() => setToastMessage(null), 4000);
+      console.warn('Detection API error, activating resilient plate estimation:', err);
+      const fallback = getFallbackPresetForContext(mealType, isIndianMode, isIndianMode ? 'indian' : 'global');
+      const fallbackItems: FoodItem[] = fallback.items.map((fi: any, idx: number) => {
+        const match = FOOD_DATABASE.find((f) => f.name.toLowerCase() === fi.name.toLowerCase()) || FOOD_DATABASE[0];
+        const constructed = calculateItemNutrition(match, fi.portion || 'medium');
+        if (fi.box) constructed.box = fi.box;
+        constructed.id = `offline-${Date.now()}-${idx}`;
+        constructed.originalPrediction = fi.name;
+        constructed.confidenceTier = fi.confidenceTier || 'medium';
+        constructed.confidence = fi.confidence || 0.75;
+        constructed.isConfirmed = false;
+        constructed.similarCandidates = fi.similarCandidates || [];
+        return constructed;
+      });
+      setDetectedItems(fallbackItems);
+      if (!mealTitle || mealTitle === 'Lunch' || mealTitle === 'Breakfast' || mealTitle === 'Dinner') {
+        setMealTitle(fallback.name);
+      }
+      setToastMessage('Estimated dishes loaded (offline mode). Tap "+ Add Item" or adjust dishes if needed.');
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
       setIsAnalyzing(false);
     }

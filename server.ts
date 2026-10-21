@@ -88,6 +88,7 @@ const userCorrectionsStore: UserCorrectionRecord[] = [
 app.all("/api/v1/score-food", (req: Request, res: Response) => scoreFoodHandler(req, res));
 app.all("/api/v1/rank-foods", (req: Request, res: Response) => rankFoodsHandler(req, res));
 app.all("/api/v1/detect-food", (req: Request, res: Response) => detectFoodHandler(req, res));
+app.all("/api/detect-food", (req: Request, res: Response) => detectFoodHandler(req, res));
 app.all("/api/v1/calculate-consumption", (req: Request, res: Response) => calculateConsumptionHandler(req, res));
 app.all("/api/v1/profile-ledger", (req: Request, res: Response) => profileLedgerHandler(req, res));
 app.all("/api/v1/clinical-rules", (req: Request, res: Response) => clinicalRulesHandler(req, res));

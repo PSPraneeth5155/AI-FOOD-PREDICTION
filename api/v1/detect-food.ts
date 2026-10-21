@@ -45,7 +45,9 @@ export default async function handler(req: any, res: any) {
     } = req.body || {};
 
     const ai = getGeminiClient();
-    const activeRules = await getActiveClinicalRules();
+    const activeRules = activeConditionVariants && activeConditionVariants.length > 0
+      ? await getActiveClinicalRules()
+      : [];
 
     let detectedItems: FoodItem[] = [];
     let mealTitle = 'Detected Meal';
@@ -78,8 +80,23 @@ export default async function handler(req: any, res: any) {
         }
 
         if (imagePart) {
-          const prompt = `You are an expert clinical nutrition and computer vision system.
-Detect the ACTUAL food items in this photo.
+          const prompt = `You are an expert clinical nutrition and computer vision system specializing in multi-item food recognition (Indian regional dishes like Biryani, Dosa, Idli, Sambar, Rasam, Chutneys, Dal, Paneer, Curries, Rotis, Paratha, Poha, Upma, as well as Global dishes like Pizza, Burgers, Salads, Eggs, Toast, Rice, Pasta, Fruits).
+
+Examine the provided image with extreme precision and detect the ACTUAL food and beverage items present in THIS SPECIFIC PHOTO.
+CRITICAL DIRECTIVES:
+1. Identify what is ACTUALLY in the image. NEVER assume default dishes or presets.
+   - If the user uploaded an Apple or Banana -> detect Apple / Banana.
+   - If the user uploaded Chicken Biryani with Raita -> detect Chicken Biryani, Raita.
+   - If the user uploaded Dosa and Sambar -> detect Dosa, Sambar (and accompanying chutneys).
+   - If the user uploaded Dal, Rice, and Roti -> detect Dal, Rice, Roti.
+   - If the image contains no food (e.g. screenshot, document, blank, non-food item), set "isFoodDetected": false and "detectedItems": [].
+2. For multiple items on a plate or table, detect and segment EACH individual item with its normalized bounding box (ymin, xmin, ymax, xmax from 0 to 1000).
+3. Classify realistic macros and protein content:
+   - "isHighProtein": true if protein >= 8g per serving (e.g. eggs, chicken, fish, paneer, tofu, lentils, dal, chickpeas, yogurt).
+4. Provide confidence calibration:
+   - "confidenceTier": "high" for distinct items, "medium" for visually ambiguous curries/chutneys, "low" for obscure items.
+   - "similarCandidates": 2-3 likely alternatives if visually similar (e.g. Sambar vs Rasam; Butter Chicken vs Paneer Butter Masala).
+
 For each item, identify:
 - name: standard English or regional dish name
 - category: Grains | Curries/Gravies | Protein | Dairy | Vegetables | Fruits | Accompaniments | Snacks | Beverages | Desserts
@@ -110,7 +127,7 @@ Respond ONLY with valid JSON:
   "detectedItems": [ ... ]
 }`;
 
-          const candidateModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+          const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
           let jsonText: string | null = null;
 
           for (const modelName of candidateModels) {
@@ -158,10 +175,11 @@ Respond ONLY with valid JSON:
                 const foodItem: FoodItem = {
                   id: `ai-food-${Date.now()}-${idx}`,
                   name: item.name || 'Dish Item',
+                  originalPrediction: item.name || 'Dish Item',
                   category: item.category || 'Grains',
-                  portion: 'medium',
-                  portionMultiplier: 1.0,
-                  servingDescription: item.servingDescription || '1 standard serving',
+                  portion: item.portion || 'medium',
+                  portionMultiplier: item.portion === 'small' ? 0.7 : item.portion === 'large' ? 1.4 : 1.0,
+                  servingDescription: item.servingDescription || `${item.portion || 'medium'} serving`,
                   calories: Number(item.calories || 200),
                   protein: Number(item.protein || 5),
                   carbs: Number(item.carbs || 30),
@@ -177,8 +195,14 @@ Respond ONLY with valid JSON:
                   isHighProtein: Boolean(item.isHighProtein ?? ((item.protein || 0) >= 8)),
                   confidence: Number(confScore.toFixed(2)),
                   confidenceTier: tier,
+                  isConfirmed: tier === 'high',
                   similarCandidates: Array.isArray(item.similarCandidates) ? item.similarCandidates : [],
-                  box: item.box || { ymin: 100, xmin: 100, ymax: 900, xmax: 900 },
+                  box: item.box || {
+                    ymin: 150 + idx * 80,
+                    xmin: 150 + idx * 80,
+                    ymax: 450 + idx * 80,
+                    xmax: 450 + idx * 80,
+                  },
                   cuisineRegion: item.cuisineRegion || (isIndianMode ? 'South Indian' : 'Global'),
                   dataSource: 'PROTOTYPE_SYNTHETIC',
                 };

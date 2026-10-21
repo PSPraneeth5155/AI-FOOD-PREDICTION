@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "functions": {
+    "api/detect-food.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
     "api/v1/detect-food.ts": {
       "memory": 1024,
       "maxDuration": 30
@@ -12,6 +16,14 @@
     }
   },
   "rewrites": [
+    {
+      "source": "/api/detect-food",
+      "destination": "/api/v1/detect-food.ts"
+    },
+    {
+      "source": "/api/feedback/:match*",
+      "destination": "/api/v1/feedback.ts"
+    },
     {
       "source": "/api/v1/:match*",
       "destination": "/api/v1/:match*"
