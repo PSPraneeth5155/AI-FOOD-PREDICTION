@@ -412,7 +412,7 @@ Respond ONLY with valid JSON:
   "detectedItems": [ ... ]
 }`;
 
-          const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+          const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
           let jsonText: string | null = null;
 
           for (const modelName of candidateModels) {
@@ -421,6 +421,7 @@ Respond ONLY with valid JSON:
               const apiRes = await fetch(geminiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(6000),
                 body: JSON.stringify({
                   contents: [
                     {

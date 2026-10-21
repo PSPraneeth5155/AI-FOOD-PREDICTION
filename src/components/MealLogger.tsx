@@ -181,7 +181,7 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        const maxDim = 1280;
+        const maxDim = 800;
         let width = img.width;
         let height = img.height;
         if (width > maxDim || height > maxDim) {
@@ -199,8 +199,7 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const webp = canvas.toDataURL('image/webp', 0.80);
-          resolve(webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.80));
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
         } else {
           resolve(dataUrl);
         }
