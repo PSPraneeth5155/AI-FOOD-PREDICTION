@@ -101,6 +101,26 @@ NutriTrack stages biometrics and lab markers deterministically into 42 condition
   $$\text{ActualConsumed}_j = \text{ServedIntake}_j \times \left(1 - \frac{\text{LeftoverPercent}}{100}\right)$$
 - **12-Nutrient Ledger**: Atomically decrements today's remaining allowances across all 12 nutrients.
 
+### 5. User Profiles, Authentication & Clinical Staging
+- **Clean Clinical Authentication**: Dedicated Sign In and 3-Step Guided Signup with strict validation on mandatory fields (Name, Email, Password, Country, State, Age, Biological Sex, Height, Weight).
+- **Automated Biomarker Auto-Staging**: Lab markers entered during onboarding (SBP/DBP, Fasting Glucose, HbA1c, Cholesterol) automatically stage clinical condition variants (e.g., SBP $\ge 130 \implies \text{HTN\_STAGE\_1}$).
+- **Multi-Profile Management**: Instant profile switcher modal allows clinical dietitians and multi-user households to switch sessions seamlessly, with complete meal ledger isolation per account (`nutritrack_meals_${user.id}`).
+
+### 6. Worldwide Location-Based Food Selection
+- **Hierarchical Catalog**: Covers 12 countries (India, USA, UK, Italy, Japan, Mexico, Canada, Australia, France, Germany, Thailand, UAE) with their respective states and culinary provinces.
+- **Interactive Location Filters**: Both the Plate Logger / Food Library and the Clinical Recommendations engine feature Country and State dropdown filter bars auto-defaulted to the user's home location.
+- **Localized Dietary Rationales**: Prioritizes authentic regional staples (e.g. Hyderabadi Biryani, Punjabi Saag, Karnataka Bisi Bele Bath, Neapolitan Pizza, Oaxacan Tacos) matching active clinical nutritional gaps.
+
+### 7. Connected Fitness & Wearable Ecosystem
+- **Free Live Motion Pedometer**: Integrated W3C `DeviceMotionEvent` accelerometer listener calculates live footsteps without third-party API accounts.
+- **1-Tap Instant Activity Sync**: Immediately syncs daily steps, active calorie burn (kcal), distance, and resting heart rate.
+- **Offline Health File Import**: Supports drag-and-drop of Apple Health export XML and Google Takeout JSON files.
+- **Cloud Wearables & Coming Soon Modal**: Integration rows for Google Fit, Apple Fit, Samsung Health, and Fitbit with prominent `+` buttons triggering a responsive "Coming Soon!" popup modal.
+
+### 8. Comprehensive 100+ Common Foods Database
+- **103 Core Whole Foods & Everyday Staples**: Mapped with verified 12-nutrient profiles citing USDA FoodData Central and ICMR-NIN IFCT 2017. Covers common fruits (Apples, Oranges, Papaya), vegetables (Bhindi, Aloo Gobi, Baingan Bharta), staples (Oatmeal, Moong Dal Khichdi, Besan Chilla, Roti with Ghee), proteins & dairy (Omelette, Milk, Whey Protein, Peanut Butter), and daily beverages/snacks (Masala Chai, Spiced Chaas, Roasted Makhana).
+- **40 Localized Regional Dishes**: Fully profiled dishes with cultural tags, serving descriptions, and condition-specific suitability notes.
+
 ---
 
 ## ⚡ Performance & Latency Benchmarks
@@ -138,16 +158,22 @@ Tested on standard x64 execution environment (`npm run bench`):
 ├── src/
 │   ├── components/
 │   │   ├── HomeDashboard.tsx                    # 12-nutrient ledger & adherence gauge
+│   │   ├── AuthView.tsx                         # Clinical Login & 3-Step Guided Signup
+│   │   ├── FitnessActivityCard.tsx              # Live accelerometer pedometer & wearable sync
+│   │   ├── ComingSoonModal.tsx                  # Interactive Wearable Coming Soon modal
+│   │   ├── FitnessSyncModal.tsx                 # Offline health file importer & sync manager
 │   │   ├── SuitabilityExplanationModal.tsx      # XAI drawer with bullet bar drivers
 │   │   ├── ClinicianReviewPortal.tsx            # 504-rule grid with live sum(W)=1.0
 │   │   ├── OnboardingModal.tsx                  # 4-step wizard with lab auto-staging
-│   │   ├── MealLogger.tsx                       # WebP image capture & leftover slider
-│   │   ├── RecommendationsView.tsx              # Gap-filling & regional swaps
-│   │   └── SettingsView.tsx                     # Profile & clinician portal trigger
+│   │   ├── MealLogger.tsx                       # WebP image capture & location food search
+│   │   ├── RecommendationsView.tsx              # Gap-filling & location-filtered swaps
+│   │   └── SettingsView.tsx                     # Profile, account switcher & clinician portal
 │   ├── data/
+│   │   ├── authService.ts                       # Multi-user accounts & clinical auto-staging
+│   │   ├── locationFoodData.ts                  # Worldwide 12-country food catalog (40 dishes)
+│   │   ├── nutritionDb.ts                       # Expanded 103 whole foods & common staples
 │   │   ├── clinicalRulesSeed.ts                 # All 504 rules typed & weighted
-│   │   ├── indianFoodDb.ts                      # 51 Indian dishes with 12 nutrients
-│   │   └── nutritionDb.ts                       # 20 Western dishes (USDA FDC cited)
+│   │   └── fitnessService.ts                    # Motion sensor listener & simulated sync
 │   ├── db/
 │   │   ├── schema.ts                            # Drizzle ORM PostgreSQL schema
 │   │   └── client.ts                            # Dual-mode Neon + Upstash / memory fallback

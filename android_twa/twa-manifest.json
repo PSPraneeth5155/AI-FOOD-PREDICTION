@@ -1,6 +1,6 @@
 {
   "packageId": "com.nutritrack.ai",
-  "host": "127.0.0.1:3000",
+  "host": "ai-food-prediction.vercel.app",
   "name": "NutriTrack AI",
   "launcherName": "NutriTrack",
   "display": "standalone",
@@ -13,18 +13,18 @@
   "backgroundColor": "#0F172A",
   "enableNotifications": true,
   "startUrl": "/",
-  "iconUrl": "http://127.0.0.1:3000/icon-512.png",
-  "maskableIconUrl": "http://127.0.0.1:3000/icon-512.png",
+  "iconUrl": "https://ai-food-prediction.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://ai-food-prediction.vercel.app/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "E:\\Praneeth's Project\\android_twa\\android.keystore",
     "alias": "nutritrack"
   },
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionName": "2.0.0",
+  "appVersionCode": 2,
   "shortcuts": [],
-  "generatorApp": "unknown",
-  "webManifestUrl": "http://127.0.0.1:3000/manifest.json",
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://ai-food-prediction.vercel.app/manifest.json",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -33,7 +33,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "http://127.0.0.1:3000/",
+  "fullScopeUrl": "https://ai-food-prediction.vercel.app/",
   "minSdkVersion": 21,
   "orientation": "portrait",
   "fingerprints": [],
@@ -43,5 +43,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1.0.0"
+  "appVersion": "2.0.0"
 }

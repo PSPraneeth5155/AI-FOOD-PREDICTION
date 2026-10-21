@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, LoggedMeal, NavigationTab, RecommendedFood } from './types';
+import { UserProfile, LoggedMeal, NavigationTab, RecommendedFood, FitnessActivityData } from './types';
 import {
   DEFAULT_USER_PROFILE,
   SEED_MEALS,
@@ -8,7 +8,13 @@ import {
   calculateItemNutrition,
   FOOD_DATABASE,
 } from './data/nutritionDb';
+import {
+  getCurrentUser,
+  logoutUser,
+  updateActiveProfile,
+} from './data/authService';
 
+import { AuthView } from './components/AuthView';
 import { BottomNavBar } from './components/BottomNavBar';
 import { HomeDashboard } from './components/HomeDashboard';
 import { MealLogger } from './components/MealLogger';
@@ -23,27 +29,22 @@ import { FitnessSyncModal } from './components/FitnessSyncModal';
 import { ClinicianReviewPortal } from './components/ClinicianReviewPortal';
 
 export default function App() {
-  // 1. User Profile State (persisted in localStorage)
-  const [user, setUser] = useState<UserProfile>(() => {
-    try {
-      const saved = localStorage.getItem('nutritrack_user');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Failed to load user profile from storage', e);
-    }
-    return DEFAULT_USER_PROFILE;
+  // 1. User Profile Authentication & Multi-Account State
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    return getCurrentUser();
   });
 
-  // 2. Meals State (persisted in localStorage)
+  // 2. User-Scoped Meals State
   const [meals, setMeals] = useState<LoggedMeal[]>(() => {
+    if (!user) return SEED_MEALS;
     try {
-      const saved = localStorage.getItem('nutritrack_meals');
+      const saved = localStorage.getItem(`nutritrack_meals_${user.id}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (e) {
-      console.warn('Failed to load meals from storage', e);
+      console.warn('Failed to load user meals from storage', e);
     }
     return SEED_MEALS;
   });
@@ -52,29 +53,65 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('home');
 
   // 4. Modals State
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => !user.onboardingCompleted);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => !user?.onboardingCompleted);
   const [showHealthReport, setShowHealthReport] = useState<boolean>(false);
   const [showWeeklyUpdateModal, setShowWeeklyUpdateModal] = useState<boolean>(false);
   const [showFitnessSyncModal, setShowFitnessSyncModal] = useState<boolean>(false);
   const [showClinicianPortal, setShowClinicianPortal] = useState<boolean>(false);
   const [selectedMeal, setSelectedMeal] = useState<LoggedMeal | null>(null);
 
-  // Sync to local storage
+  // Sync active user to local storage and auth accounts
   useEffect(() => {
+    if (!user) return;
+    setShowOnboarding(!user.onboardingCompleted);
     try {
       localStorage.setItem('nutritrack_user', JSON.stringify(user));
+      updateActiveProfile(user);
     } catch (e) {
       console.warn('Error saving user to localStorage', e);
     }
   }, [user]);
 
+  // Reload user-scoped meals whenever active user changes
   useEffect(() => {
+    if (!user) return;
     try {
-      localStorage.setItem('nutritrack_meals', JSON.stringify(meals));
+      const userMealsKey = `nutritrack_meals_${user.id}`;
+      const saved = localStorage.getItem(userMealsKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setMeals(parsed);
+          return;
+        }
+      }
+      setMeals(SEED_MEALS);
+    } catch (e) {
+      console.warn('Failed to switch user meals', e);
+    }
+  }, [user?.id]);
+
+  // Persist user-scoped meals to local storage
+  useEffect(() => {
+    if (!user) return;
+    try {
+      localStorage.setItem(`nutritrack_meals_${user.id}`, JSON.stringify(meals));
     } catch (e) {
       console.warn('Error saving meals to localStorage', e);
     }
-  }, [meals]);
+  }, [meals, user?.id]);
+
+  // If user is not authenticated, render Login / Signup AuthView
+  if (!user) {
+    return (
+      <AuthView
+        onAuthSuccess={(newProfile) => {
+          setUser(newProfile);
+          setCurrentTab('home');
+        }}
+      />
+    );
+  }
 
   // Today's Meals
   const todayStr = new Date().toISOString().split('T')[0];
@@ -91,14 +128,12 @@ export default function App() {
 
   // Filter recommendations matching user dietary preferences & allergies
   const filteredRecs = RECOMMENDED_FOODS.filter((rec) => {
-    // Diet preference check
     if (user.lifestyle.dietaryPreference === 'vegetarian' && !rec.dietTags.includes('Vegetarian')) {
       return false;
     }
     if (user.lifestyle.dietaryPreference === 'vegan' && !rec.dietTags.includes('Vegan')) {
       return false;
     }
-    // Allergy exclusions
     if (user.lifestyle.allergies.some((alg) => rec.allergens.includes(alg))) {
       return false;
     }
@@ -169,6 +204,11 @@ export default function App() {
     setSelectedMeal(null);
   };
 
+  // Live Fitness Update handler
+  const handleFitnessUpdate = (data: FitnessActivityData) => {
+    setUser((prev) => (prev ? { ...prev, fitnessData: data } : null));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50/40 via-slate-50/70 to-sky-50/30 text-slate-800 antialiased selection:bg-teal-200">
       {/* Background soft ambient glowing meshes for modern glassmorphism */}
@@ -194,6 +234,7 @@ export default function App() {
             onOpenWeeklyUpdate={() => setShowWeeklyUpdateModal(true)}
             onOpenFitnessSync={() => setShowFitnessSyncModal(true)}
             onOpenClinicianPortal={() => setShowClinicianPortal(true)}
+            onUpdateFitnessData={handleFitnessUpdate}
           />
         )}
 
@@ -230,6 +271,13 @@ export default function App() {
             onOpenWeeklyUpdate={() => setShowWeeklyUpdateModal(true)}
             onOpenFitnessSync={() => setShowFitnessSyncModal(true)}
             onOpenClinicianPortal={() => setShowClinicianPortal(true)}
+            onLogout={() => {
+              logoutUser();
+              setUser(null);
+            }}
+            onSwitchProfile={(switched) => {
+              setUser(switched);
+            }}
           />
         )}
       </main>

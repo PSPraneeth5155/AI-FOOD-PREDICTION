@@ -275,6 +275,10 @@ export interface UserProfile {
     allergies: string[];
     healthGoals: string[];
     regionalPreference?: 'South Indian' | 'North Indian' | 'East Indian' | 'West Indian' | 'Pan-Indian' | 'Global';
+    location?: {
+      country: string;
+      state: string;
+    };
   };
   targets: UserTargets;
   unitSystem: 'metric' | 'imperial';
@@ -326,6 +330,9 @@ export interface FoodItem {
   isConfirmed?: boolean;
   originalPrediction?: string;
   cuisineRegion?: 'South Indian' | 'North Indian' | 'East Indian' | 'West Indian' | 'Pan-Indian' | 'Global';
+  isIndianFood?: boolean;
+  country?: string;
+  state?: string;
   isHighProtein?: boolean;
   similarCandidates?: string[];
   regionalNames?: string[];

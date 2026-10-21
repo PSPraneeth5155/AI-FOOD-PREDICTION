@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { UserProfile, DietPreference, ActivityLevel } from '../types';
 import { calculateBMI, calculateTargets } from '../data/nutritionDb';
 import {
+  getStoredAccounts,
+  switchUser,
+  logoutUser,
+  updateActiveProfile,
+} from '../data/authService';
+import {
+  COUNTRIES_AND_STATES,
+  getStatesForCountry,
+} from '../data/locationFoodData';
+import {
   User,
   Heart,
   FileText,
@@ -16,6 +26,10 @@ import {
   HeartPulse,
   Activity,
   ShieldCheck,
+  Users,
+  MapPin,
+  X,
+  Plus,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -26,6 +40,8 @@ interface SettingsViewProps {
   onOpenWeeklyUpdate?: () => void;
   onOpenFitnessSync?: () => void;
   onOpenClinicianPortal?: () => void;
+  onLogout?: () => void;
+  onSwitchProfile?: (profile: UserProfile) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -36,10 +52,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenWeeklyUpdate,
   onOpenFitnessSync,
   onOpenClinicianPortal,
+  onLogout,
+  onSwitchProfile,
 }) => {
   // Collapsible section state
   const [openSection, setOpenSection] = useState<string | null>('bodyProfile');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
 
   // Form states
   const [name, setName] = useState(user.name);
@@ -47,6 +66,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [weightKg, setWeightKg] = useState(user.weightKg);
   const [age, setAge] = useState(user.age);
   const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>(user.unitSystem || 'metric');
+
+  // Location
+  const [country, setCountry] = useState<string>(user.lifestyle?.location?.country || 'India');
+  const [state, setState] = useState<string>(user.lifestyle?.location?.state || 'Telangana');
 
   // Medical
   const [systolicBP, setSystolicBP] = useState(user.medical.systolicBP || 120);
@@ -62,6 +85,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     UserProfile['lifestyle']['regionalPreference']
   >(user.lifestyle.regionalPreference || 'South Indian');
   const [allergies, setAllergies] = useState<string[]>(user.lifestyle.allergies);
+
+  // Sync state whenever active user changes
+  React.useEffect(() => {
+    setName(user.name);
+    setHeightCm(user.heightCm);
+    setWeightKg(user.weightKg);
+    setAge(user.age);
+    setUnitSystem(user.unitSystem || 'metric');
+    setCountry(user.lifestyle?.location?.country || 'India');
+    setState(user.lifestyle?.location?.state || 'Telangana');
+    setSystolicBP(user.medical.systolicBP || 120);
+    setDiastolicBP(user.medical.diastolicBP || 80);
+    setBloodSugar(user.medical.bloodSugar || 95);
+    setCholesterol(user.medical.cholesterol || 185);
+    setDietaryPreference(user.lifestyle.dietaryPreference);
+    setRegionalPreference(user.lifestyle.regionalPreference || 'South Indian');
+    setAllergies(user.lifestyle.allergies || []);
+  }, [user]);
 
   // Notifications
   const [mealReminders, setMealReminders] = useState(user.notifications.mealReminders);
@@ -93,6 +134,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       dietaryPreference,
       regionalPreference,
       allergies,
+      location: {
+        country,
+        state,
+      },
     };
 
     const newTargets = calculateTargets({
@@ -100,8 +145,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       heightCm,
       age,
       gender: user.gender,
-      medical: updatedMedical,
+      activeConditionVariants: user.activeConditionVariants,
       lifestyle: updatedLifestyle,
+      medical: updatedMedical,
     });
 
     const updated: UserProfile = {
@@ -123,6 +169,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       },
     };
 
+    updateActiveProfile(updated);
     onUpdateUser(updated);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000);
@@ -145,6 +192,58 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span>Saved!</span>
           </span>
         )}
+      </div>
+
+      {/* ACTIVE USER PROFILE & MULTI-ACCOUNT CARD */}
+      <div className="p-4 rounded-3xl bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="w-12 h-12 rounded-full object-cover ring-2 ring-teal-500/30 border-2 border-white shadow-xs"
+            />
+            <div>
+              <div className="flex items-center space-x-1.5">
+                <h2 className="text-sm font-bold text-slate-900">{user.name}</h2>
+                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800">
+                  {user.role || 'CONSUMER'}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 block">{user.email}</span>
+              <div className="flex items-center space-x-1 mt-0.5 text-[10px] text-teal-800 font-semibold">
+                <MapPin className="w-3 h-3 text-teal-600" />
+                <span>{country}, {state}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col space-y-1.5 items-end">
+            <button
+              type="button"
+              onClick={() => setShowSwitchModal(true)}
+              className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 flex items-center space-x-1 transition-all"
+            >
+              <Users className="w-3 h-3 text-teal-700" />
+              <span>Switch</span>
+            </button>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to log out of NutriTrack AI?')) {
+                    logoutUser();
+                    onLogout();
+                  }
+                }}
+                className="px-2 py-0.5 text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline flex items-center space-x-0.5"
+              >
+                <LogOut className="w-2.5 h-2.5" />
+                <span>Log Out</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* DOCTOR HEALTH REPORT HERO CARD */}
@@ -278,11 +377,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <div className="flex items-center space-x-1 text-teal-800 text-xs font-bold">
+                <MapPin className="w-3.5 h-3.5 text-teal-600" />
+                <span>Location (Country & State)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Country</label>
+                  <select
+                    value={country}
+                    onChange={(e) => {
+                      const c = e.target.value;
+                      setCountry(c);
+                      const states = getStatesForCountry(c);
+                      if (states.length > 0) setState(states[0].name);
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    {COUNTRIES_AND_STATES.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.flag} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">State / Region</label>
+                  <select
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    {getStatesForCountry(country).map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={handleSaveSettings}
               className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
             >
-              Update Body Metrics
+              Update Body & Location Metrics
             </button>
           </div>
         )}
@@ -597,6 +738,92 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span>Re-run Health Onboarding Flow</span>
         </button>
       </div>
+
+      {/* SWITCH USER PROFILE MODAL */}
+      {showSwitchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-teal-50 to-sky-50">
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-teal-700" />
+                <h3 className="text-sm font-bold text-slate-900">Switch User Profile</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSwitchModal(false)}
+                className="w-7 h-7 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 divide-y divide-slate-100 max-h-72 overflow-y-auto space-y-1">
+              {getStoredAccounts().map((acc) => {
+                const isActive = acc.id === user.id;
+                return (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => {
+                      const switched = switchUser(acc.id);
+                      if (switched && onSwitchProfile) {
+                        onSwitchProfile(switched);
+                      }
+                      setShowSwitchModal(false);
+                    }}
+                    className={`w-full p-2.5 rounded-2xl flex items-center justify-between transition-all ${
+                      isActive ? 'bg-teal-50/80 border border-teal-200' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <img
+                        src={acc.profile.avatar}
+                        alt={acc.profile.name}
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                      />
+                      <div className="text-left">
+                        <span className="text-xs font-bold text-slate-900 block">{acc.profile.name}</span>
+                        <span className="text-[10px] text-slate-400 block">{acc.email}</span>
+                        {acc.profile.lifestyle?.location && (
+                          <span className="text-[9px] font-bold text-teal-700 block">
+                            📍 {acc.profile.lifestyle.location.state}, {acc.profile.lifestyle.location.country}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isActive ? (
+                      <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full">
+                        Active ✓
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-500 hover:text-teal-700">
+                        Select →
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSwitchModal(false);
+                    logoutUser();
+                    onLogout();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-teal-700 text-white text-xs font-bold hover:bg-teal-800 transition-all flex items-center justify-center space-x-1.5 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create or Sign into Another Profile</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

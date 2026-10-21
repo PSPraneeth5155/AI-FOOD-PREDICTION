@@ -8,6 +8,12 @@ import { predictMlSuitabilityScore } from '../shared/onnxInferenceEngine';
 import { CLINICAL_RULES_SEED } from '../data/clinicalRulesSeed';
 import { SuitabilityExplanationModal } from './SuitabilityExplanationModal';
 import {
+  COUNTRIES_AND_STATES,
+  getStatesForCountry,
+  getFoodsForLocation,
+  convertLocalizedToFoodItem,
+} from '../data/locationFoodData';
+import {
   Sparkles,
   AlertCircle,
   Plus,
@@ -19,6 +25,7 @@ import {
   RefreshCw,
   ArrowRight,
   Sliders,
+  MapPin,
 } from 'lucide-react';
 
 interface RecommendationsViewProps {
@@ -39,9 +46,17 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
   const [rankedCatalog, setRankedCatalog] = useState<Array<{ item: FoodItem; suitability: FoodSuitabilityResponse }>>([]);
   const [selectedItemForXai, setSelectedItemForXai] = useState<{ item: FoodItem; suitability: FoodSuitabilityResponse } | null>(null);
   const [fillGapsMode, setFillGapsMode] = useState<boolean>(true);
+  const [recCountry, setRecCountry] = useState<string>(user.lifestyle?.location?.country || 'India');
+  const [recState, setRecState] = useState<string>(user.lifestyle?.location?.state || 'Telangana');
 
-  // Combine Indian and Western dishes
+  // Localized dishes from selected Country & State
+  const localizedFoods = React.useMemo(() => {
+    return getFoodsForLocation(recCountry, recState).map((d) => convertLocalizedToFoodItem(d, 'medium'));
+  }, [recCountry, recState]);
+
+  // Combine Localized, Indian and Western dishes
   const allFoods: FoodItem[] = [
+    ...localizedFoods,
     ...INDIAN_FOOD_DATABASE.map(f => ({
       id: f.id,
       name: f.name,
@@ -179,6 +194,56 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
         >
           {fillGapsMode ? '✓ Fills Gaps' : 'All Foods'}
         </button>
+      </div>
+
+      {/* Location Selector (Countrywise & Statewise Dropdown) */}
+      <div className="p-3 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-xs flex items-center space-x-2.5">
+        <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+          <MapPin className="w-4 h-4" />
+        </div>
+        <div className="flex-1 grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+              Country
+            </label>
+            <select
+              value={recCountry}
+              onChange={(e) => {
+                const c = e.target.value;
+                setRecCountry(c);
+                const states = getStatesForCountry(c);
+                if (states.length > 0) setRecState(states[0].name);
+              }}
+              className="w-full px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            >
+              <option value="all">🌍 All Countries</option>
+              {COUNTRIES_AND_STATES.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.flag} {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+              State / Region
+            </label>
+            <select
+              value={recState}
+              onChange={(e) => setRecState(e.target.value)}
+              disabled={recCountry === 'all'}
+              className="w-full px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+            >
+              <option value="all">📍 All States</option>
+              {getStatesForCountry(recCountry).map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* TODAY'S NUTRITIONAL GAPS ACCORDION */}

@@ -34,6 +34,7 @@ interface HomeDashboardProps {
   onOpenWeeklyUpdate?: () => void;
   onOpenFitnessSync?: () => void;
   onOpenClinicianPortal?: () => void;
+  onUpdateFitnessData?: (data: any) => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -49,6 +50,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onOpenWeeklyUpdate,
   onOpenFitnessSync,
   onOpenClinicianPortal,
+  onUpdateFitnessData,
 }) => {
   // Compute today's consumed totals
   const todayCalories = todayMeals.reduce((sum, m) => sum + m.totalCalories, 0);
@@ -409,6 +411,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         user={user}
         todayFoodCalories={todayCalories}
         onOpenSyncModal={onOpenFitnessSync}
+        onUpdateFitnessData={onUpdateFitnessData}
       />
 
       {/* QUICK LOG CTA BANNER */}

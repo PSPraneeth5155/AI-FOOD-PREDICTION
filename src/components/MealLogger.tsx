@@ -24,6 +24,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   Info,
+  MapPin,
+  Globe,
 } from 'lucide-react';
 import { FoodItem, MealType, LoggedMeal, PortionSize, UserProfile } from '../types';
 import { SuitabilityExplanationModal } from './SuitabilityExplanationModal';
@@ -35,6 +37,12 @@ import {
 } from '../data/nutritionDb';
 import { getFallbackPresetForContext } from '../data/fallbackPlatters';
 import { evaluateMealHealthSuitability } from '../data/fitnessService';
+import {
+  COUNTRIES_AND_STATES,
+  getStatesForCountry,
+  getFoodsForLocation,
+  convertLocalizedToFoodItem,
+} from '../data/locationFoodData';
 
 interface MealLoggerProps {
   user: UserProfile;
@@ -79,10 +87,16 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
   // Expandable protein view toggle
   const [showProteinDetails, setShowProteinDetails] = useState<boolean>(true);
 
-  // Manual Food Search Modal
+  // Manual Food Search Modal & Location-Based Food Selection
   const [showManualSearch, setShowManualSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategoryFilter, setSearchCategoryFilter] = useState<string>('all');
+  const [filterCountry, setFilterCountry] = useState<string>(
+    user.lifestyle?.location?.country || 'India'
+  );
+  const [filterState, setFilterState] = useState<string>(
+    user.lifestyle?.location?.state || 'Telangana'
+  );
 
   // Start Camera Stream with fallback
   const startCamera = async (overrideFacing?: 'environment' | 'user') => {
@@ -621,12 +635,28 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
     onSaveMeal(newMeal);
   };
 
+  // Combine general DB with localized dishes from selected Country & State
+  const localizedItems = React.useMemo(() => {
+    const dishes = getFoodsForLocation(filterCountry, filterState);
+    return dishes.map((d) => convertLocalizedToFoodItem(d, 'medium'));
+  }, [filterCountry, filterState]);
+
+  const combinedFoodDb = React.useMemo(() => {
+    const localNames = new Set(localizedItems.map((l) => l.name.toLowerCase()));
+    const remaining = FOOD_DATABASE.filter((f) => !localNames.has(f.name.toLowerCase()));
+    return [...localizedItems, ...remaining];
+  }, [localizedItems]);
+
   // Filter food database for manual search
-  const filteredDb = FOOD_DATABASE.filter((item) => {
+  const filteredDb = combinedFoodDb.filter((item) => {
+    const q = searchQuery.toLowerCase().trim();
     const matchesQuery =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.regionalNames && item.regionalNames.some((r) => r.toLowerCase().includes(searchQuery.toLowerCase())));
+      !q ||
+      item.name.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      (item.state && item.state.toLowerCase().includes(q)) ||
+      (item.country && item.country.toLowerCase().includes(q)) ||
+      (item.regionalNames && item.regionalNames.some((r) => r.toLowerCase().includes(q)));
 
     if (!matchesQuery) return false;
 
@@ -1569,6 +1599,44 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
               </button>
             </div>
 
+            {/* Location Selector (Country & State Dropdowns) */}
+            <div className="px-3 pt-2.5 pb-2 bg-gradient-to-r from-teal-50/60 to-sky-50/40 border-b border-slate-100 flex items-center space-x-2">
+              <MapPin className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+              <div className="grid grid-cols-2 gap-1.5 flex-1">
+                <select
+                  value={filterCountry}
+                  onChange={(e) => {
+                    const c = e.target.value;
+                    setFilterCountry(c);
+                    const states = getStatesForCountry(c);
+                    if (states.length > 0) setFilterState(states[0].name);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                >
+                  <option value="all">🌍 All Countries</option>
+                  {COUNTRIES_AND_STATES.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.flag} {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={filterState}
+                  onChange={(e) => setFilterState(e.target.value)}
+                  disabled={filterCountry === 'all'}
+                  className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+                >
+                  <option value="all">📍 All States</option>
+                  {getStatesForCountry(filterCountry).map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* Search Input */}
             <div className="p-3 border-b border-slate-100 space-y-2">
               <div className="relative">
@@ -1622,9 +1690,14 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
                     className="w-full p-2.5 text-left flex items-center justify-between hover:bg-slate-50 rounded-xl transition-colors"
                   >
                     <div className="flex-1 mr-2">
-                      <div className="flex items-center space-x-1.5">
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                         <span className="text-xs font-bold text-slate-800">{item.name}</span>
-                        {item.cuisineRegion && (
+                        {item.state && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-sm bg-teal-50 text-teal-800 border border-teal-200">
+                            {item.state}
+                          </span>
+                        )}
+                        {item.cuisineRegion && !item.state && (
                           <span className="text-[9px] font-bold px-1 rounded-sm bg-amber-50 text-amber-700">
                             {item.cuisineRegion}
                           </span>

@@ -14,8 +14,10 @@ import {
   Sparkles,
   ChevronRight,
   ShieldCheck,
+  Plus,
 } from 'lucide-react';
 import { getSimulatedFitnessData, parseFitnessFile } from '../data/fitnessService';
+import { ComingSoonModal } from './ComingSoonModal';
 
 interface FitnessSyncModalProps {
   user: UserProfile;
@@ -37,6 +39,7 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [fileImportFeedback, setFileImportFeedback] = useState<string | null>(null);
+  const [comingSoonApp, setComingSoonApp] = useState<string | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -98,25 +101,33 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
     if (!file) return;
 
     try {
-      setFileImportFeedback(`Reading fitness data from ${file.name}...`);
-      const { source, data } = await parseFitnessFile(file);
-      const combined = getSimulatedFitnessData(source, data);
+      const parsedResult = await parseFitnessFile(file);
 
-      triggerUpdate(combined, {
-        medical: {
-          ...user.medical,
-          restingHeartRate: combined.restingHeartRate || user.medical.restingHeartRate,
+      triggerUpdate(
+        {
+          ...currentFitness,
+          ...parsedResult.data,
+          source: parsedResult.source,
+          lastSyncedAt: new Date().toISOString(),
         },
-      });
+        {
+          medical: {
+            ...user.medical,
+            restingHeartRate: parsedResult.data.restingHeartRate || user.medical.restingHeartRate,
+          },
+        }
+      );
 
-      setFileImportFeedback(`✓ Imported ${combined.steps.toLocaleString()} steps from ${file.name}!`);
-      setTimeout(() => setFileImportFeedback(null), 4000);
+      setFileImportFeedback(
+        `✓ Successfully parsed "${file.name}": Imported ${(parsedResult.data.steps || 0).toLocaleString()} steps and ${parsedResult.data.activeCaloriesBurned || 0} kcal.`
+      );
+      setTimeout(() => setFileImportFeedback(null), 5000);
     } catch (err) {
-      setFileImportFeedback('Could not read file. Supported formats: Google Fit JSON, Samsung Health CSV.');
+      setFileImportFeedback(`⚠️ Could not parse file. Please upload a standard Takeout JSON or Samsung CSV.`);
     }
   };
 
-  const getSourceName = (src: FitnessSyncSource) => {
+  const getSourceName = (src: FitnessSyncSource): string => {
     switch (src) {
       case 'google_fit':
         return 'Google Fit / Health Connect';
@@ -142,7 +153,7 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">Connected Fitness Apps</h3>
-              <p className="text-[11px] text-sky-800">Google Fit, Samsung Health, Galaxy Fit</p>
+              <p className="text-[11px] text-sky-800">Google Fit, Apple Fit, Samsung Health, Galaxy Fit</p>
             </div>
           </div>
           <button
@@ -226,7 +237,10 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
 
           {/* Fitness Provider Selectors */}
           <div className="space-y-2.5">
-            <h4 className="text-xs font-bold text-slate-800">Select Fitness App to Sync:</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-800">Select Fitness App to Sync:</h4>
+              <span className="text-[10px] text-slate-400">Click + for Cloud Sync</span>
+            </div>
 
             {/* Google Fit Card */}
             <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-teal-500 transition-all flex items-center justify-between">
@@ -243,14 +257,24 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
                   </span>
                 </div>
               </div>
-              <button
-                disabled={isSyncing}
-                onClick={() => handleSyncNow('google_fit')}
-                className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all border border-blue-200 flex items-center space-x-1 active:scale-95"
-              >
-                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>Sync</span>
-              </button>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  title="Connect Google Fit"
+                  onClick={() => setComingSoonApp('Google Fit')}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 flex items-center justify-center border border-slate-200 active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <button
+                  disabled={isSyncing}
+                  onClick={() => handleSyncNow('google_fit')}
+                  className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all border border-blue-200 flex items-center space-x-1 active:scale-95"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>Sync</span>
+                </button>
+              </div>
             </div>
 
             {/* Samsung Health & Galaxy Fit Card */}
@@ -268,39 +292,59 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
                   </span>
                 </div>
               </div>
-              <button
-                disabled={isSyncing}
-                onClick={() => handleSyncNow('samsung_health')}
-                className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 flex items-center space-x-1 active:scale-95"
-              >
-                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>Sync</span>
-              </button>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  title="Connect Samsung Health"
+                  onClick={() => setComingSoonApp('Samsung Health')}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 flex items-center justify-center border border-slate-200 active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <button
+                  disabled={isSyncing}
+                  onClick={() => handleSyncNow('samsung_health')}
+                  className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 flex items-center space-x-1 active:scale-95"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>Sync</span>
+                </button>
+              </div>
             </div>
 
-            {/* Apple Health & Fitbit Card */}
+            {/* Apple Health & Apple Fit Card */}
             <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-teal-500 transition-all flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-xl bg-slate-900 text-white font-black text-sm flex items-center justify-center shadow-xs">
-                  A
+                  
                 </div>
                 <div>
                   <span className="text-xs font-bold text-slate-900 block">
-                    Apple Health & Fitbit
+                    Apple Health & Apple Fit
                   </span>
                   <span className="text-[10px] text-slate-400 block">
                     Daily active energy ring, distance & workouts
                   </span>
                 </div>
               </div>
-              <button
-                disabled={isSyncing}
-                onClick={() => handleSyncNow('apple_health')}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-300 flex items-center space-x-1 active:scale-95"
-              >
-                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>Sync</span>
-              </button>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  title="Connect Apple Fit"
+                  onClick={() => setComingSoonApp('Apple Fit')}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 flex items-center justify-center border border-slate-200 active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <button
+                  disabled={isSyncing}
+                  onClick={() => handleSyncNow('apple_health')}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-300 flex items-center space-x-1 active:scale-95"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>Sync</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -310,13 +354,13 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
               <div className="flex items-center space-x-2">
                 <Upload className="w-4 h-4 text-teal-600" />
                 <span className="text-xs font-bold text-slate-900">
-                  Import Fitness File
+                  Import Fitness File (100% Free)
                 </span>
               </div>
               <span className="text-[10px] text-slate-400">JSON or CSV</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Exported from Google Takeout or Samsung Health? Upload your daily activity file to import exact steps and heart rate logs directly.
+              Exported from Google Takeout or Samsung Health? Upload your daily activity file to import exact steps and heart rate logs directly without third-party APIs.
             </p>
             <input
               type="file"
@@ -354,6 +398,14 @@ export const FitnessSyncModal: React.FC<FitnessSyncModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Coming Soon Interactive Modal */}
+      <ComingSoonModal
+        isOpen={!!comingSoonApp}
+        appName={comingSoonApp || ''}
+        onClose={() => setComingSoonApp(null)}
+        onConnectFreeSensor={() => handleSyncNow('google_fit')}
+      />
     </div>
   );
 };
