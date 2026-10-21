@@ -429,7 +429,7 @@ export const FALLBACK_PLATTER_PRESETS = fallbackMap;
 export function getFallbackPresetForContext(
   mealType = 'lunch',
   isIndianMode = true,
-  cuisinePreference
+  cuisinePreference?: string
 ) {
   if (isIndianMode) {
     if (mealType === 'breakfast') {

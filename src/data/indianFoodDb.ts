@@ -362,6 +362,7 @@ export const INDIAN_FOOD_DATABASE: IndianFoodEntry[] = [
     dataSource: 'IFCT_2017',
     sourceCitationId: 'IFCT_2017_VEG_ALOO',
     visuallySimilarTo: ['Dry Potato Subzi', 'Aloo Gobi'],
+    thumbnail: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=400&q=80',
     healthNote: 'Spiced boiled potatoes with onions, mustard seeds, curry leaves, and turmeric.',
   },
 

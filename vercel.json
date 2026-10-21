@@ -17,11 +17,19 @@
   },
   "rewrites": [
     {
+      "source": "/api/v1/:match*",
+      "destination": "/api/v1/:match*"
+    },
+    {
+      "source": "/api/detect-food",
+      "destination": "/api/v1/detect-food"
+    },
+    {
       "source": "/api/feedback/:match*",
       "destination": "/api/v1/feedback"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api|assets|favicon|logo|icon|manifest|sw|site\\.webmanifest|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
