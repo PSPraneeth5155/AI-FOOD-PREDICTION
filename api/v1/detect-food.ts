@@ -1,9 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { FALLBACK_PLATTER_PRESETS, getFallbackPresetForContext } from '../../src/data/fallbackPlatters';
-import { evaluateMultiCondition } from '../../src/shared/ruleScoringEngine';
-import { formatFoodSuitabilityResponse } from '../../src/shared/blendingEngine';
-import { getActiveClinicalRules } from '../../src/db/client';
-import { ConditionVariant, FoodItem } from '../../src/types';
+import { FoodItem } from '../../src/types';
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -41,13 +38,9 @@ export default async function handler(req: any, res: any) {
       mealType = 'lunch',
       isIndianMode = true,
       cuisinePreference,
-      activeConditionVariants = [],
     } = req.body || {};
 
     const ai = getGeminiClient();
-    const activeRules = activeConditionVariants && activeConditionVariants.length > 0
-      ? await getActiveClinicalRules()
-      : [];
 
     let detectedItems: FoodItem[] = [];
     let mealTitle = 'Detected Meal';
@@ -80,15 +73,15 @@ export default async function handler(req: any, res: any) {
         }
 
         if (imagePart) {
-          const prompt = `You are an expert clinical nutrition and computer vision system specializing in multi-item food recognition (Indian regional dishes like Biryani, Dosa, Idli, Sambar, Rasam, Chutneys, Dal, Paneer, Curries, Rotis, Paratha, Poha, Upma, as well as Global dishes like Pizza, Burgers, Salads, Eggs, Toast, Rice, Pasta, Fruits).
+          const prompt = `You are an expert clinical nutrition and computer vision system specializing in multi-item food recognition (Indian regional dishes like Biryani, Dosa, Idli, Vada, Sambar, Rasam, Chutneys, Dal, Paneer, Curries, Rotis, Paratha, Poha, Upma, as well as Global dishes like Pizza, Burgers, Salads, Eggs, Toast, Rice, Pasta, Fruits).
 
 Examine the provided image with extreme precision and detect the ACTUAL food and beverage items present in THIS SPECIFIC PHOTO.
 CRITICAL DIRECTIVES:
 1. Identify what is ACTUALLY in the image. NEVER assume default dishes or presets.
-   - If the user uploaded an Apple or Banana -> detect Apple / Banana.
-   - If the user uploaded Chicken Biryani with Raita -> detect Chicken Biryani, Raita.
-   - If the user uploaded Dosa and Sambar -> detect Dosa, Sambar (and accompanying chutneys).
-   - If the user uploaded Dal, Rice, and Roti -> detect Dal, Rice, Roti.
+   - If the photo shows a Dosa on a plate or banana leaf -> detect Dosa, Sambar, and accompanying Chutneys! Do NOT confuse with Roti or Paneer.
+   - If the photo shows Chicken Biryani with Raita -> detect Chicken Biryani, Raita.
+   - If the photo shows Pizza -> detect Pizza.
+   - If the photo shows Dal, Rice, and Roti -> detect Dal, Rice, Roti.
    - If the image contains no food (e.g. screenshot, document, blank, non-food item), set "isFoodDetected": false and "detectedItems": [].
 2. For multiple items on a plate or table, detect and segment EACH individual item with its normalized bounding box (ymin, xmin, ymax, xmax from 0 to 1000).
 3. Classify realistic macros and protein content:
@@ -123,7 +116,7 @@ For each item, identify:
 Respond ONLY with valid JSON:
 {
   "isFoodDetected": true,
-  "mealTitle": "Short descriptive title of the plate",
+  "mealTitle": "Short descriptive title of the plate (e.g. South Indian Dosa & Chutneys Platter)",
   "detectedItems": [ ... ]
 }`;
 
@@ -207,14 +200,6 @@ Respond ONLY with valid JSON:
                   dataSource: 'PROTOTYPE_SYNTHETIC',
                 };
 
-                // Run pre-scoring against user's conditions
-                if (activeConditionVariants.length > 0) {
-                  const evalResult = evaluateMultiCondition(foodItem, activeRules, activeConditionVariants as ConditionVariant[], {
-                    mealType,
-                  });
-                  foodItem.suitability = formatFoodSuitabilityResponse(foodItem, evalResult, undefined, startTime);
-                }
-
                 return foodItem;
               });
             }
@@ -234,13 +219,9 @@ Respond ONLY with valid JSON:
         const foodItem: FoodItem = {
           ...item,
           id: `preset-${Date.now()}-${idx}`,
+          originalPrediction: item.name,
+          isConfirmed: item.confidenceTier === 'high',
         };
-        if (activeConditionVariants.length > 0) {
-          const evalResult = evaluateMultiCondition(foodItem, activeRules, activeConditionVariants as ConditionVariant[], {
-            mealType,
-          });
-          foodItem.suitability = formatFoodSuitabilityResponse(foodItem, evalResult, undefined, startTime);
-        }
         return foodItem;
       });
     }

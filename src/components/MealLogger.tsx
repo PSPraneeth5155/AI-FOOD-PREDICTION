@@ -273,6 +273,9 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
             cuisinePreference: isIndianMode ? 'indian' : 'global',
           }),
         });
+        if (!res.ok) {
+          throw new Error(`Primary detection returned HTTP ${res.status}`);
+        }
       } catch (primaryErr) {
         console.warn('Primary /api/v1/detect-food failed, trying /api/detect-food fallback:', primaryErr);
         res = await fetch('/api/detect-food', {

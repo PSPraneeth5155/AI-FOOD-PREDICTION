@@ -17,16 +17,8 @@
   },
   "rewrites": [
     {
-      "source": "/api/detect-food",
-      "destination": "/api/v1/detect-food.ts"
-    },
-    {
       "source": "/api/feedback/:match*",
-      "destination": "/api/v1/feedback.ts"
-    },
-    {
-      "source": "/api/v1/:match*",
-      "destination": "/api/v1/:match*"
+      "destination": "/api/v1/feedback"
     },
     {
       "source": "/((?!api/).*)",
