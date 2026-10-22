@@ -1,7 +1,4 @@
-import { edgeCache, db } from '../../src/db/client';
-import { userClinicalProfiles, users } from '../../src/db/schema';
-import { eq } from 'drizzle-orm';
-import { UserProfile } from '../../src/types';
+import type { UserProfile } from '../../src/types';
 
 export interface UserAccount {
   id: string;
@@ -9,6 +6,65 @@ export interface UserAccount {
   passwordHash: string;
   profile: UserProfile;
   createdAt: string;
+}
+
+// Built-in environment fallbacks for Upstash Redis Cloud REST
+const UPSTASH_URL =
+  process.env.UPSTASH_REDIS_REST_URL || 'https://sweet-wahoo-163840.upstash.io';
+const UPSTASH_TOKEN =
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  'gQAAAAAAAoAAAAIgcDFhNTRhNjI2ODdiODg0MjVmODRmZDFiM2VjOGRjMjczNw';
+
+// In-memory fallback layer for local/offline execution
+const IN_MEMORY_STORE = new Map<string, any>();
+
+async function cloudGet<T>(key: string): Promise<T | null> {
+  // 1. Try Upstash REST
+  if (UPSTASH_URL && UPSTASH_TOKEN) {
+    try {
+      const res = await fetch(`${UPSTASH_URL}/get/${encodeURIComponent(key)}`, {
+        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.result !== null && data.result !== undefined) {
+          if (typeof data.result === 'string') {
+            try {
+              return JSON.parse(data.result) as T;
+            } catch {
+              return data.result as T;
+            }
+          }
+          return data.result as T;
+        }
+      }
+    } catch (err) {
+      console.warn('[CloudAuth] Upstash GET error:', err);
+    }
+  }
+  // 2. Fallback to in-memory
+  return IN_MEMORY_STORE.get(key) || null;
+}
+
+async function cloudSet(key: string, value: any): Promise<boolean> {
+  IN_MEMORY_STORE.set(key, value);
+  if (UPSTASH_URL && UPSTASH_TOKEN) {
+    try {
+      const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+      const res = await fetch(`${UPSTASH_URL}/set/${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${UPSTASH_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(serialized),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[CloudAuth] Upstash SET error:', err);
+    }
+  }
+  return true;
 }
 
 // Default pre-seeded demo accounts
@@ -222,7 +278,7 @@ export default async function handler(req: any, res: any) {
       const emailKey = `account:email:${normalizedEmail}`;
 
       // Check if account already exists in cloud cache
-      const existing = await edgeCache.get<UserAccount>(emailKey);
+      const existing = await cloudGet<UserAccount>(emailKey);
       if (existing) {
         res.status(400).json({
           success: false,
@@ -241,74 +297,8 @@ export default async function handler(req: any, res: any) {
       }
 
       // Store in global cloud cache
-      await edgeCache.set(emailKey, account, 86400 * 365); // 1 year TTL in Redis
-      await edgeCache.set(`account:id:${account.id}`, account, 86400 * 365);
-
-      // Best-effort persistence in Neon PostgreSQL
-      if (db) {
-        try {
-          const inserted = await db
-            .insert(users)
-            .values({
-              email: normalizedEmail,
-              role: account.profile.role || 'CONSUMER',
-            })
-            .onConflictDoNothing()
-            .returning({ id: users.id });
-
-          const dbUserId = inserted.length > 0 ? inserted[0].id : null;
-          if (dbUserId) {
-            await db
-              .insert(userClinicalProfiles)
-              .values({
-                userId: dbUserId,
-                displayName: account.profile.name,
-                age: account.profile.age,
-                gender: account.profile.gender,
-                heightCm: String(account.profile.heightCm),
-                weightKg: String(account.profile.weightKg),
-                bmi: String(account.profile.bmi),
-                activityLevel: account.profile.lifestyle.activityLevel,
-                sleepHours: String(account.profile.lifestyle.sleepHours || 7),
-                dietaryPreference: account.profile.lifestyle.dietaryPreference || 'any',
-                preferredCuisine: 'indian',
-                cuisineRegion: account.profile.lifestyle.regionalPreference || 'Pan-Indian',
-                activeConditionVariants: account.profile.activeConditionVariants || [],
-                systolicBp: account.profile.medical?.systolicBP,
-                diastolicBp: account.profile.medical?.diastolicBP,
-                fastingBloodSugarMgDl: account.profile.medical?.fastingGlucose
-                  ? String(account.profile.medical.fastingGlucose)
-                  : null,
-                hba1cPercent: account.profile.medical?.hba1c ? String(account.profile.medical.hba1c) : null,
-                egfrMlMin: account.profile.medical?.egfr ? String(account.profile.medical.egfr) : null,
-                ldlCholesterolMgDl: account.profile.medical?.ldlCholesterol
-                  ? String(account.profile.medical.ldlCholesterol)
-                  : null,
-                totalCholesterolMgDl: account.profile.medical?.cholesterol
-                  ? String(account.profile.medical.cholesterol)
-                  : null,
-                hemoglobinGDl: account.profile.medical?.hemoglobin
-                  ? String(account.profile.medical.hemoglobin)
-                  : null,
-                targetCalories: String(account.profile.targets.calories),
-                targetProteinG: String(account.profile.targets.protein),
-                targetCarbsG: String(account.profile.targets.carbs),
-                targetFiberG: String(account.profile.targets.fiber),
-                targetSugarG: String(account.profile.targets.sugar),
-                targetFatG: String(account.profile.targets.fat),
-                targetSatFatG: String(account.profile.targets.saturatedFat),
-                targetSodiumMg: String(account.profile.targets.sodium),
-                targetCholesterolMg: String(account.profile.targets.cholesterol),
-                targetPotassiumMg: String(account.profile.targets.potassium),
-                targetCalciumMg: String(account.profile.targets.calcium),
-                targetIronMg: String(account.profile.targets.iron),
-              })
-              .onConflictDoNothing();
-          }
-        } catch (dbErr) {
-          console.warn('[DB] User insert into Neon PostgreSQL failed, but Redis cached successfully:', dbErr);
-        }
-      }
+      await cloudSet(emailKey, account);
+      await cloudSet(`account:id:${account.id}`, account);
 
       res.status(201).json({
         success: true,
@@ -331,7 +321,7 @@ export default async function handler(req: any, res: any) {
       const emailKey = `account:email:${normalizedEmail}`;
 
       // Check cloud cache
-      let acc = await edgeCache.get<UserAccount>(emailKey);
+      let acc = await cloudGet<UserAccount>(emailKey);
 
       // Fallback: Check pre-seeded demo accounts
       if (!acc) {
@@ -371,7 +361,7 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
-      let acc = await edgeCache.get<UserAccount>(`account:id:${userId}`);
+      let acc = await cloudGet<UserAccount>(`account:id:${userId}`);
       if (!acc) {
         acc = SEED_ACCOUNTS.find((a) => a.id === userId);
       }
@@ -397,7 +387,7 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
-      let acc = await edgeCache.get<UserAccount>(`account:id:${userId}`);
+      let acc = await cloudGet<UserAccount>(`account:id:${userId}`);
       if (!acc) {
         acc = SEED_ACCOUNTS.find((a) => a.id === userId);
       }
