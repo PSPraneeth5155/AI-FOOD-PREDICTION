@@ -28,14 +28,18 @@ async function cloudGet<T>(key: string): Promise<T | null> {
       if (res.ok) {
         const data = await res.json();
         if (data && data.result !== null && data.result !== undefined) {
-          if (typeof data.result === 'string') {
+          let parsed = data.result;
+          if (typeof parsed === 'string') {
             try {
-              return JSON.parse(data.result) as T;
-            } catch {
-              return data.result as T;
-            }
+              parsed = JSON.parse(parsed);
+            } catch {}
           }
-          return data.result as T;
+          if (typeof parsed === 'string') {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch {}
+          }
+          return parsed as T;
         }
       }
     } catch (err) {
@@ -57,7 +61,7 @@ async function cloudSet(key: string, value: any): Promise<boolean> {
           Authorization: `Bearer ${UPSTASH_TOKEN}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(serialized),
+        body: serialized,
       });
       return res.ok;
     } catch (err) {
