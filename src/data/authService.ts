@@ -45,6 +45,7 @@ export interface RegisterInput {
 
 const STORAGE_ACCOUNTS_KEY = 'nutritrack_accounts_db';
 const STORAGE_ACTIVE_USER_KEY = 'nutritrack_active_user_id';
+const STORAGE_DEVICE_ACCOUNTS_KEY = 'nutritrack_device_accounts';
 
 // Node / Browser storage fallback
 const memoryStore: Record<string, string> = {};
@@ -286,6 +287,104 @@ export function saveAccounts(accounts: UserAccount[]): void {
 }
 
 /**
+ * Retrieves the list of user IDs that have authenticated on this local device
+ */
+export function getDeviceAccountIds(): string[] {
+  try {
+    const raw = getStorageItem(STORAGE_DEVICE_ACCOUNTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading device accounts from storage', e);
+  }
+
+  // Fallback: If device accounts list is not initialized yet, check active user session
+  const activeId = getStorageItem(STORAGE_ACTIVE_USER_KEY);
+  if (activeId) {
+    const initial = [activeId];
+    setStorageItem(STORAGE_DEVICE_ACCOUNTS_KEY, JSON.stringify(initial));
+    return initial;
+  }
+
+  return [];
+}
+
+/**
+ * Registers an account ID as known/authenticated on this local device
+ */
+export function addDeviceKnownAccount(userId: string): void {
+  try {
+    const current = getDeviceAccountIds();
+    if (!current.includes(userId)) {
+      current.push(userId);
+      setStorageItem(STORAGE_DEVICE_ACCOUNTS_KEY, JSON.stringify(current));
+    }
+  } catch (e) {
+    console.warn('Error adding device account', e);
+  }
+}
+
+/**
+ * Removes an account ID from known device accounts (does not delete account itself)
+ */
+export function removeDeviceKnownAccount(userId: string): void {
+  try {
+    const current = getDeviceAccountIds();
+    const filtered = current.filter((id) => id !== userId);
+    setStorageItem(STORAGE_DEVICE_ACCOUNTS_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Error removing device account', e);
+  }
+}
+
+/**
+ * Returns full account objects for accounts that have logged in on this device
+ */
+export function getDeviceKnownAccounts(): UserAccount[] {
+  const deviceIds = getDeviceAccountIds();
+  const allAccounts = getStoredAccounts();
+  return allAccounts.filter((acc) => deviceIds.includes(acc.id));
+}
+
+/**
+ * Verifies if the provided password matches the account
+ */
+export function verifyAccountPassword(userId: string, password: string): boolean {
+  const accounts = getStoredAccounts();
+  const account = accounts.find((a) => a.id === userId);
+  if (!account) return false;
+  return account.passwordHash === password;
+}
+
+/**
+ * Password-protected switch profile
+ */
+export function switchUserWithPassword(
+  userId: string,
+  password: string
+): { success: boolean; error?: string; profile?: UserProfile } {
+  const accounts = getStoredAccounts();
+  const account = accounts.find((a) => a.id === userId);
+  if (!account) {
+    return { success: false, error: 'Account not found.' };
+  }
+
+  if (account.passwordHash !== password) {
+    return { success: false, error: 'Incorrect password for this profile. Please try again.' };
+  }
+
+  // Set active session & ensure registered on this device
+  setStorageItem(STORAGE_ACTIVE_USER_KEY, userId);
+  addDeviceKnownAccount(userId);
+
+  return { success: true, profile: account.profile };
+}
+
+/**
  * Authenticate user with Email and Password
  */
 export function loginUser(email: string, password: string): { success: boolean; error?: string; profile?: UserProfile } {
@@ -301,8 +400,9 @@ export function loginUser(email: string, password: string): { success: boolean; 
     return { success: false, error: 'Incorrect password. Please try again.' };
   }
 
-  // Set active session
+  // Set active session & register as device account
   setStorageItem(STORAGE_ACTIVE_USER_KEY, account.id);
+  addDeviceKnownAccount(account.id);
 
   return { success: true, profile: account.profile };
 }
@@ -516,8 +616,9 @@ export function registerUser(input: RegisterInput): { success: boolean; error?: 
   accounts.push(newAccount);
   saveAccounts(accounts);
 
-  // Set active session
+  // Set active session & register as device account
   setStorageItem(STORAGE_ACTIVE_USER_KEY, userId);
+  addDeviceKnownAccount(userId);
 
   return { success: true, profile: newProfile };
 }

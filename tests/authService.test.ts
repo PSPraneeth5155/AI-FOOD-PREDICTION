@@ -18,6 +18,10 @@ import {
   getCurrentUser,
   switchUser,
   getStoredAccounts,
+  getDeviceKnownAccounts,
+  verifyAccountPassword,
+  switchUserWithPassword,
+  removeDeviceKnownAccount,
   RegisterInput,
 } from '../src/data/authService';
 
@@ -164,5 +168,50 @@ describe('Auth & Multi-Profile Management Service', () => {
 
     logoutUser();
     expect(getCurrentUser()).toBeNull();
+  });
+
+  it('should only show device-authenticated accounts in getDeviceKnownAccounts', () => {
+    // Before logging in, device accounts are empty (or active user only)
+    expect(getDeviceKnownAccounts().length).toBe(0);
+
+    // Logging in as Priya should register ONLY Priya on this device
+    const priyaLogin = loginUser('priya@example.com', 'password123');
+    expect(priyaLogin.success).toBe(true);
+
+    const deviceAccounts = getDeviceKnownAccounts();
+    expect(deviceAccounts.length).toBe(1);
+    expect(deviceAccounts[0].profile.name).toBe('Priya Sharma');
+    // Arjun Mehta must NOT be in the device accounts
+    expect(deviceAccounts.some((a) => a.email === 'arjun@example.com')).toBe(false);
+  });
+
+  it('should enforce password verification when switching accounts', () => {
+    loginUser('priya@example.com', 'password123');
+
+    // Test verifyAccountPassword
+    expect(verifyAccountPassword('usr_arjun_mehta_02', 'password123')).toBe(true);
+    expect(verifyAccountPassword('usr_arjun_mehta_02', 'wrongpass')).toBe(false);
+
+    // Attempt switch with wrong password
+    const failSwitch = switchUserWithPassword('usr_arjun_mehta_02', 'wrongpass');
+    expect(failSwitch.success).toBe(false);
+    expect(failSwitch.error).toContain('Incorrect password');
+    expect(getCurrentUser()?.id).toBe('usr_priya_sharma_01'); // Remains Priya
+
+    // Attempt switch with correct password
+    const successSwitch = switchUserWithPassword('usr_arjun_mehta_02', 'password123');
+    expect(successSwitch.success).toBe(true);
+    expect(successSwitch.profile?.name).toBe('Arjun Mehta');
+    expect(getCurrentUser()?.id).toBe('usr_arjun_mehta_02'); // Now Arjun
+
+    // Both should now be registered on this device
+    const deviceAccounts = getDeviceKnownAccounts();
+    expect(deviceAccounts.length).toBe(2);
+
+    // Removing Arjun from device should work cleanly
+    removeDeviceKnownAccount('usr_arjun_mehta_02');
+    const remaining = getDeviceKnownAccounts();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].id).toBe('usr_priya_sharma_01');
   });
 });
