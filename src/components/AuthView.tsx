@@ -42,6 +42,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   // ================= SIGNUP STATE =================
   const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
@@ -88,21 +89,23 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
 
   // ================= HANDLE LOGIN =================
   // ================= LOGIN HANDLER =================
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setIsLoggingIn(true);
 
-    setTimeout(() => {
-      const res = loginUser(loginEmail, loginPassword);
-      setIsLoggingIn(false);
-
+    try {
+      const res = await loginUser(loginEmail, loginPassword);
       if (res.success && res.profile) {
         onAuthSuccess(res.profile);
       } else {
         setErrorMsg(res.error || 'Authentication failed. Please check your credentials.');
       }
-    }, 400);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login failed. Please check your internet connection.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   // ================= HANDLE SIGNUP PROGRESSION =================
@@ -148,9 +151,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
     setSignupStep(3);
   };
 
-  const handleSignupSubmit = (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setIsSigningUp(true);
 
     const input: RegisterInput = {
       name,
@@ -173,11 +177,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
       selectedConditions,
     };
 
-    const res = registerUser(input);
-    if (res.success && res.profile) {
-      onAuthSuccess(res.profile);
-    } else {
-      setErrorMsg(res.error || 'Failed to complete registration.');
+    try {
+      const res = await registerUser(input);
+      if (res.success && res.profile) {
+        onAuthSuccess(res.profile);
+      } else {
+        setErrorMsg(res.error || 'Failed to complete registration.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Registration failed. Please check your internet connection.');
+    } finally {
+      setIsSigningUp(false);
     }
   };
 
@@ -752,10 +762,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
 
                   <button
                     type="submit"
-                    className="w-2/3 py-2.5 rounded-xl bg-[#00695c] hover:bg-emerald-800 active:scale-98 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center space-x-1"
+                    disabled={isSigningUp}
+                    className="w-2/3 py-2.5 rounded-xl bg-[#00695c] hover:bg-emerald-800 disabled:opacity-60 active:scale-98 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center space-x-1"
                   >
-                    <span>Create Profile & Launch</span>
-                    <Check className="w-4 h-4" />
+                    <span>{isSigningUp ? 'Saving & Syncing...' : 'Create Profile & Launch'}</span>
+                    {isSigningUp ? <Sparkles className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   </button>
                 </div>
               </form>

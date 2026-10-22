@@ -12,6 +12,7 @@ import detectFoodHandler from "./api/v1/detect-food";
 import calculateConsumptionHandler from "./api/v1/calculate-consumption";
 import profileLedgerHandler from "./api/v1/profile-ledger";
 import clinicalRulesHandler from "./api/v1/clinical-rules";
+import authHandler from "./api/v1/auth";
 
 dotenv.config();
 
@@ -92,6 +93,7 @@ app.all("/api/detect-food", (req: Request, res: Response) => detectFoodHandler(r
 app.all("/api/v1/calculate-consumption", (req: Request, res: Response) => calculateConsumptionHandler(req, res));
 app.all("/api/v1/profile-ledger", (req: Request, res: Response) => profileLedgerHandler(req, res));
 app.all("/api/v1/clinical-rules", (req: Request, res: Response) => clinicalRulesHandler(req, res));
+app.all("/api/v1/auth", (req: Request, res: Response) => authHandler(req, res));
 
 // Health check endpoint
 app.get("/api/health", (_req: Request, res: Response) => {

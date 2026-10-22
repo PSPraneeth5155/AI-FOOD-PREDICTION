@@ -43,6 +43,13 @@ export interface RegisterInput {
   healthGoals?: string[];
 }
 
+function isBrowser(): boolean {
+  return typeof window !== 'undefined' && typeof window.document !== 'undefined';
+}
+
+function getAuthApiUrl(): string {
+  return '/api/v1/auth';
+}
 const STORAGE_ACCOUNTS_KEY = 'nutritrack_accounts_db';
 const STORAGE_ACTIVE_USER_KEY = 'nutritrack_active_user_id';
 const STORAGE_DEVICE_ACCOUNTS_KEY = 'nutritrack_device_accounts';
@@ -363,34 +370,103 @@ export function verifyAccountPassword(userId: string, password: string): boolean
 /**
  * Password-protected switch profile
  */
-export function switchUserWithPassword(
+export async function switchUserWithPassword(
   userId: string,
   password: string
-): { success: boolean; error?: string; profile?: UserProfile } {
+): Promise<{ success: boolean; error?: string; profile?: UserProfile }> {
   const accounts = getStoredAccounts();
   const account = accounts.find((a) => a.id === userId);
-  if (!account) {
-    return { success: false, error: 'Account not found.' };
+
+  if (account) {
+    if (account.passwordHash !== password) {
+      return { success: false, error: 'Incorrect password for this profile. Please try again.' };
+    }
+
+    // Set active session & ensure registered on this device
+    setStorageItem(STORAGE_ACTIVE_USER_KEY, userId);
+    addDeviceKnownAccount(userId);
+
+    return { success: true, profile: account.profile };
   }
 
-  if (account.passwordHash !== password) {
-    return { success: false, error: 'Incorrect password for this profile. Please try again.' };
+  // Cloud fallback check if account was registered elsewhere
+  try {
+    if (isBrowser()) {
+      const resp = await fetch(getAuthApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-password',
+          userId,
+          password,
+        }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success && data.account) {
+        const currentAccounts = getStoredAccounts();
+        currentAccounts.push(data.account);
+        saveAccounts(currentAccounts);
+
+        setStorageItem(STORAGE_ACTIVE_USER_KEY, userId);
+        addDeviceKnownAccount(userId);
+        return { success: true, profile: data.account.profile };
+      }
+      return { success: false, error: data.error || 'Incorrect password for this profile. Please try again.' };
+    }
+  } catch (err) {
+    console.warn('[AuthService] Remote password verification failed:', err);
   }
 
-  // Set active session & ensure registered on this device
-  setStorageItem(STORAGE_ACTIVE_USER_KEY, userId);
-  addDeviceKnownAccount(userId);
-
-  return { success: true, profile: account.profile };
+  return { success: false, error: 'Account not found.' };
 }
 
 /**
- * Authenticate user with Email and Password
+ * Authenticate user with Email and Password across cloud & local storage
  */
-export function loginUser(email: string, password: string): { success: boolean; error?: string; profile?: UserProfile } {
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<{ success: boolean; error?: string; profile?: UserProfile }> {
   const normalizedEmail = email.trim().toLowerCase();
-  const accounts = getStoredAccounts();
 
+  // 1. Try remote cloud authentication first
+  try {
+    if (isBrowser()) {
+      const resp = await fetch(getAuthApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'login',
+          email: normalizedEmail,
+          password,
+        }),
+      });
+
+      const data = await resp.json();
+      if (resp.ok && data.success && data.account) {
+        // Cache account in local accounts database
+        const accounts = getStoredAccounts().filter((a) => a.email.toLowerCase() !== normalizedEmail);
+        accounts.push(data.account);
+        saveAccounts(accounts);
+
+        // Set active session & register on this device
+        setStorageItem(STORAGE_ACTIVE_USER_KEY, data.account.id);
+        addDeviceKnownAccount(data.account.id);
+
+        return { success: true, profile: data.account.profile };
+      }
+
+      // If server returned specific credential failure (401 wrong password or 404 no account found)
+      if (resp.status === 401 || resp.status === 404 || (data && !data.success && data.error)) {
+        return { success: false, error: data.error || 'Authentication failed. Please check your credentials.' };
+      }
+    }
+  } catch (err) {
+    console.warn('[AuthService] Remote cloud login failed or offline, checking local storage:', err);
+  }
+
+  // 2. Offline / Local fallback
+  const accounts = getStoredAccounts();
   const account = accounts.find((acc) => acc.email.toLowerCase() === normalizedEmail);
   if (!account) {
     return { success: false, error: 'No account found with this email address.' };
@@ -408,9 +484,11 @@ export function loginUser(email: string, password: string): { success: boolean; 
 }
 
 /**
- * Register a new user profile with all mandatory validation + smart clinical defaults
+ * Register a new user profile with all mandatory validation + smart clinical defaults + cloud sync
  */
-export function registerUser(input: RegisterInput): { success: boolean; error?: string; profile?: UserProfile } {
+export async function registerUser(
+  input: RegisterInput
+): Promise<{ success: boolean; error?: string; profile?: UserProfile }> {
   // 1. Mandatory Validations
   if (!input.name || input.name.trim().length < 2) {
     return { success: false, error: 'Full Name is required (minimum 2 characters).' };
@@ -612,6 +690,27 @@ export function registerUser(input: RegisterInput): { success: boolean; error?: 
     profile: newProfile,
     createdAt: new Date().toISOString(),
   };
+
+  // Sync to Central Cloud Auth Database
+  try {
+    if (isBrowser()) {
+      const resp = await fetch(getAuthApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register',
+          account: newAccount,
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to register account on cloud server.' };
+      }
+    }
+  } catch (err) {
+    console.warn('[AuthService] Cloud registration sync error, saving locally:', err);
+  }
 
   accounts.push(newAccount);
   saveAccounts(accounts);

@@ -83,12 +83,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setShowSwitchModal(true);
   };
 
-  const handleUnlockAndSwitch = (accId: string) => {
+  const handleUnlockAndSwitch = async (accId: string) => {
     if (!unlockPassword.trim()) {
       setUnlockError('Please enter your password.');
       return;
     }
-    const res = switchUserWithPassword(accId, unlockPassword);
+    const res = await switchUserWithPassword(accId, unlockPassword);
     if (res.success && res.profile) {
       if (onSwitchProfile) {
         onSwitchProfile(res.profile);
