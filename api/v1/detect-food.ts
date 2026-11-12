@@ -338,6 +338,189 @@ const FALLBACK_PLATTERS: Record<string, { name: string; items: any[] }> = {
       },
     ],
   },
+  indian_biryani: {
+    name: 'Hyderabadi Chicken Biryani Platter',
+    items: [
+      {
+        name: 'Hyderabadi Chicken Biryani',
+        category: 'Rice Dishes',
+        cuisineRegion: 'South Indian',
+        isHighProtein: true,
+        confidenceTier: 'high',
+        confidence: 0.89,
+        portion: 'medium',
+        calories: 420,
+        protein: 26.5,
+        carbs: 48.0,
+        fat: 14.5,
+        fiber: 3.2,
+        sodium: 480,
+        servingDescription: '1 plate (~320g)',
+        similarCandidates: ['Mutton Biryani', 'Vegetable Dum Biryani'],
+        box: { ymin: 150, xmin: 150, ymax: 750, xmax: 750 },
+      },
+      {
+        name: 'Cucumber Raita',
+        category: 'Accompaniments',
+        cuisineRegion: 'South Indian',
+        isHighProtein: true,
+        confidenceTier: 'high',
+        confidence: 0.85,
+        portion: 'medium',
+        calories: 75,
+        protein: 4.2,
+        carbs: 6.0,
+        fat: 3.8,
+        fiber: 0.8,
+        sodium: 110,
+        servingDescription: '1 small bowl (~140g)',
+        similarCandidates: ['Plain Curd / Dahi'],
+        box: { ymin: 180, xmin: 680, ymax: 520, xmax: 920 },
+      },
+      {
+        name: 'Boiled Eggs (2 Eggs)',
+        category: 'Protein',
+        cuisineRegion: 'Pan-Indian',
+        isHighProtein: true,
+        confidenceTier: 'high',
+        confidence: 0.90,
+        portion: 'medium',
+        calories: 144,
+        protein: 12.6,
+        carbs: 0.7,
+        fat: 9.9,
+        fiber: 0,
+        sodium: 142,
+        servingDescription: '2 large eggs (100g)',
+        similarCandidates: ['Boiled Egg Curry'],
+        box: { ymin: 520, xmin: 680, ymax: 820, xmax: 920 },
+      },
+    ],
+  },
+  indian_street_food: {
+    name: 'Mumbai Pav Bhaji & Accompaniments',
+    items: [
+      {
+        name: 'Pav Bhaji',
+        category: 'Snacks',
+        cuisineRegion: 'West Indian',
+        isHighProtein: true,
+        confidenceTier: 'high',
+        confidence: 0.88,
+        portion: 'medium',
+        calories: 420,
+        protein: 9.8,
+        carbs: 62.0,
+        fat: 15.5,
+        fiber: 7.2,
+        sodium: 520,
+        servingDescription: '1 bowl bhaji with 2 buttered pav (~300g)',
+        similarCandidates: ['Vada Pav', 'Potato Masala / Aloo Bhaji'],
+        box: { ymin: 150, xmin: 100, ymax: 750, xmax: 650 },
+      },
+      {
+        name: 'Fresh Red Apple',
+        category: 'Fruits',
+        cuisineRegion: 'Global',
+        isHighProtein: false,
+        confidenceTier: 'high',
+        confidence: 0.92,
+        portion: 'medium',
+        calories: 95,
+        protein: 0.5,
+        carbs: 25.0,
+        fat: 0.3,
+        fiber: 4.4,
+        sodium: 2,
+        servingDescription: '1 medium apple (182g)',
+        similarCandidates: ['Sweet Orange'],
+        box: { ymin: 200, xmin: 680, ymax: 550, xmax: 920 },
+      },
+    ],
+  },
+  dinner: {
+    name: 'Atlantic Salmon & Organic Quinoa Bowl',
+    items: [
+      {
+        name: 'Atlantic Salmon Fillet',
+        category: 'Protein',
+        portion: 'medium',
+        calories: 332,
+        protein: 34.0,
+        carbs: 0,
+        fat: 21.0,
+        fiber: 0,
+        sodium: 95,
+        servingDescription: '1 fillet (160g)',
+        box: { ymin: 220, xmin: 240, ymax: 680, xmax: 650 },
+      },
+      {
+        name: 'Organic Quinoa',
+        category: 'Grains',
+        portion: 'medium',
+        calories: 222,
+        protein: 8.1,
+        carbs: 39.4,
+        fat: 3.6,
+        fiber: 5.2,
+        sodium: 13,
+        servingDescription: '1 cup cooked (185g)',
+        box: { ymin: 420, xmin: 520, ymax: 820, xmax: 880 },
+      },
+      {
+        name: 'Steamed Broccoli Florets',
+        category: 'Vegetables',
+        portion: 'medium',
+        calories: 31,
+        protein: 2.6,
+        carbs: 6.0,
+        fat: 0.3,
+        fiber: 2.4,
+        sodium: 30,
+        servingDescription: '1 cup (91g)',
+        box: { ymin: 160, xmin: 520, ymax: 420, xmax: 880 },
+      },
+    ],
+  },
+  snack: {
+    name: 'Wild Blueberry Greek Yogurt & Almonds',
+    items: [
+      {
+        name: 'High-Protein Roasted Sattu Drink',
+        category: 'Beverages',
+        cuisineRegion: 'East Indian',
+        isHighProtein: true,
+        confidenceTier: 'high',
+        confidence: 0.88,
+        portion: 'medium',
+        calories: 185,
+        protein: 12.8,
+        carbs: 27.5,
+        fat: 2.8,
+        fiber: 6.8,
+        sodium: 260,
+        servingDescription: '1 tall glass (~300ml)',
+        box: { ymin: 150, xmin: 150, ymax: 750, xmax: 550 },
+      },
+      {
+        name: 'Mixed Raw Almonds, Walnuts & Cashews',
+        category: 'Healthy Fats',
+        cuisineRegion: 'Global',
+        isHighProtein: false,
+        confidenceTier: 'high',
+        confidence: 0.91,
+        portion: 'small',
+        calories: 185,
+        protein: 5.8,
+        carbs: 5.6,
+        fat: 16.8,
+        fiber: 3.1,
+        sodium: 3,
+        servingDescription: '1 handful (30g)',
+        box: { ymin: 250, xmin: 600, ymax: 650, xmax: 900 },
+      },
+    ],
+  },
 };
 
 export default async function handler(req: any, res: any) {
@@ -443,7 +626,7 @@ Respond ONLY with valid JSON:
 }`;
 
           // Model preference: gemini-3.1-flash-lite as primary fast model, gemini-flash-latest, 3.8-flash, 3.5-flash
-          const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+          const candidateModels = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
           let jsonText: string | null = null;
           successfulKeyIndex = -1;
 
@@ -456,7 +639,7 @@ Respond ONLY with valid JSON:
                 const apiRes = await fetch(geminiEndpoint, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  signal: AbortSignal.timeout(6000),
+                  signal: AbortSignal.timeout(12000),
                   body: JSON.stringify({
                     contents: [
                       {
@@ -489,7 +672,7 @@ Respond ONLY with valid JSON:
                 } else {
                   console.warn(`[Vision] Key ${keyIdx + 1} (${modelName}) returned HTTP ${apiRes.status}`);
                   // If rate-limited (429) or forbidden (403), switch immediately to the next API key!
-                  if (apiRes.status === 429 || apiRes.status === 403 || apiRes.status === 401) {
+                  if (apiRes.status === 429 || apiRes.status === 403 || apiRes.status === 401 || apiRes.status === 503) {
                     console.warn(`[Vision] Key ${keyIdx + 1} rate-limited or exhausted (HTTP ${apiRes.status}), switching to next key...`);
                     break; // breaks inner model loop to try next key in keyLoop
                   }
@@ -571,13 +754,23 @@ Respond ONLY with valid JSON:
 
     // 2. Fallback to Platter Presets if Gemini not available or failed
     if (detectedItems.length === 0) {
-      const fallbackKey = isIndianMode
-        ? mealType === 'breakfast'
-          ? 'indian_breakfast'
-          : 'indian_thali'
-        : mealType === 'breakfast'
-        ? 'breakfast'
-        : 'lunch';
+      let fallbackKey = 'lunch';
+      if (isIndianMode) {
+        if (mealType === 'breakfast') {
+          fallbackKey = 'indian_breakfast';
+        } else if (mealType === 'dinner' || (cuisinePreference && String(cuisinePreference).toLowerCase().includes('biryani'))) {
+          fallbackKey = 'indian_biryani';
+        } else if (mealType === 'snack') {
+          fallbackKey = 'indian_street_food';
+        } else {
+          fallbackKey = 'indian_thali';
+        }
+      } else {
+        if (mealType === 'breakfast') fallbackKey = 'breakfast';
+        else if (mealType === 'dinner') fallbackKey = 'dinner';
+        else if (mealType === 'snack') fallbackKey = 'snack';
+        else fallbackKey = 'lunch';
+      }
 
       const fallbackPreset = FALLBACK_PLATTERS[fallbackKey] || FALLBACK_PLATTERS.indian_breakfast;
       detectionSource = 'fallback-preset';

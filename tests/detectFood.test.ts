@@ -103,6 +103,52 @@ describe('Food Detection & Suggested Presets Calibration', () => {
 
     const westernDinner = getFallbackPresetForContext('dinner', false);
     expect(westernDinner.items.length).toBeGreaterThanOrEqual(2);
+
+    const indianStreet = getFallbackPresetForContext('snack', true);
+    expect(indianStreet.items.length).toBeGreaterThanOrEqual(2);
+    expect(indianStreet.name).toContain('Pav Bhaji');
+  });
+
+  it('should verify expanded food database contains newly added regional and fitness foods with complete nutrition', async () => {
+    const { FOOD_DATABASE } = await import('../src/data/nutritionDb');
+    expect(FOOD_DATABASE.length).toBeGreaterThan(180);
+
+    const checkDishes = [
+      'Rava Dosa',
+      'Pesarattu (Moong Dal Dosa)',
+      'Butter Chicken / Murgh Makhani',
+      'Paneer Tikka',
+      'Pav Bhaji',
+      'High-Protein Roasted Sattu Drink',
+      'Classic Greek Salad with Feta',
+      'Grilled Chicken Caesar Salad',
+    ];
+
+    for (const name of checkDishes) {
+      const match = FOOD_DATABASE.find(f => f.name.toLowerCase() === name.toLowerCase());
+      expect(match, `Dish ${name} should exist in FOOD_DATABASE`).toBeDefined();
+      expect(match!.calories).toBeGreaterThan(0);
+      expect(match!.protein).toBeGreaterThanOrEqual(0);
+      expect(match!.carbs).toBeGreaterThanOrEqual(0);
+      expect(match!.fat).toBeGreaterThanOrEqual(0);
+      expect(match!.sodium).toBeGreaterThanOrEqual(0);
+      expect(match!.servingDescription).toBeTruthy();
+    }
+  });
+
+  it('should return biryani platter on dinner mealType with isIndianMode', async () => {
+    const { req, res } = createMockReqRes('POST', {
+      mealType: 'dinner',
+      isIndianMode: true,
+    });
+    await detectFoodHandler(req, res);
+    expect(res.getStatusCode()).toBe(200);
+
+    const data = res.getData();
+    expect(data.success).toBe(true);
+    expect(data.isFoodDetected).toBe(true);
+    const names = data.detectedItems.map((i: any) => i.name);
+    expect(names.some((n: string) => n.toLowerCase().includes('biryani'))).toBe(true);
   });
 
   it('should record user feedback corrections', async () => {
