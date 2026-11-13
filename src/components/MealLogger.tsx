@@ -92,10 +92,10 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategoryFilter, setSearchCategoryFilter] = useState<string>('all');
   const [filterCountry, setFilterCountry] = useState<string>(
-    user.lifestyle?.location?.country || 'India'
+    user?.lifestyle?.location?.country || 'India'
   );
   const [filterState, setFilterState] = useState<string>(
-    user.lifestyle?.location?.state || 'Telangana'
+    user?.lifestyle?.location?.state || 'Telangana'
   );
 
   // Start Camera Stream with fallback
@@ -624,7 +624,7 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: user.id,
+        userId: user?.id || 'anonymous',
         servedItems: detectedItems,
         overallLeftoverPercent: leftoverPercent,
         mealType,
@@ -642,21 +642,22 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
   }, [filterCountry, filterState]);
 
   const combinedFoodDb = React.useMemo(() => {
-    const localNames = new Set(localizedItems.map((l) => l.name.toLowerCase()));
-    const remaining = FOOD_DATABASE.filter((f) => !localNames.has(f.name.toLowerCase()));
+    const localNames = new Set(localizedItems.filter((l) => l && l.name).map((l) => l.name.toLowerCase()));
+    const remaining = FOOD_DATABASE.filter((f) => f && f.name && !localNames.has(f.name.toLowerCase()));
     return [...localizedItems, ...remaining];
   }, [localizedItems]);
 
   // Filter food database for manual search
   const filteredDb = combinedFoodDb.filter((item) => {
+    if (!item || !item.name) return false;
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery =
       !q ||
       item.name.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q) ||
+      (item.category && item.category.toLowerCase().includes(q)) ||
       (item.state && item.state.toLowerCase().includes(q)) ||
       (item.country && item.country.toLowerCase().includes(q)) ||
-      (item.regionalNames && item.regionalNames.some((r) => r.toLowerCase().includes(q)));
+      (item.regionalNames && item.regionalNames.some((r) => r && r.toLowerCase().includes(q)));
 
     if (!matchesQuery) return false;
 
@@ -667,7 +668,7 @@ export const MealLogger: React.FC<MealLoggerProps> = ({ user, onSaveMeal, onCanc
       return item.cuisineRegion === 'North Indian';
     }
     if (searchCategoryFilter === 'high-protein') {
-      return item.isHighProtein || item.protein >= 10;
+      return item.isHighProtein || (item.protein !== undefined && item.protein >= 10);
     }
     return true;
   });

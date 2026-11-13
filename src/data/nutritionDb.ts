@@ -1466,7 +1466,6 @@ export const COMMON_EVERYDAY_FOODS: Omit<FoodItem, 'id' | 'portion' | 'portionMu
     cuisineRegion: 'South Indian',
     healthNote: 'Chlorogenic acids in roasted chicory-coffee blend enhance insulin receptor sensitivity.',
   },
-,
   {
     name: "Fresh Strawberries",
     category: "Fruit",
